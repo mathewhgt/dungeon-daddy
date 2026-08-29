@@ -824,29 +824,65 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     const losPolygons: { origin: Point2D; radius: number; points: Point2D[] }[] = [];
     const cellSize = map.grid.cellSize || 50;
     const pixelsPerFoot = cellSize / (map.grid.feetPerCell || 5);
+    const mapW = mapImageRef.current?.naturalWidth || map.width || 4000;
+    const mapH = mapImageRef.current?.naturalHeight || map.height || 4000;
+    const maxMapDiagonal = Math.hypot(mapW, mapH);
+    const isDaylight = map.lighting.ambientLight === 'bright' || (map.lighting.ambientLight as string) === 'daylight';
+    const closedWalls = map.walls.filter((w) => !w.isOpen);
+
+    // If Daylight is enabled and there are no solid walls on the map, illuminate whole map!
+    if (isDaylight && closedWalls.length === 0) {
+      return [
+        {
+          origin: { x: mapW / 2, y: mapH / 2 },
+          radius: maxMapDiagonal,
+          points: [
+            { x: 0, y: 0 },
+            { x: mapW, y: 0 },
+            { x: mapW, y: mapH },
+            { x: 0, y: mapH },
+          ],
+        },
+      ];
+    }
 
     for (const tok of tokensToUse) {
       const rangeFeet = (tok as any).visionRangeFeet || 60;
-      const radiusPx = rangeFeet * pixelsPerFoot;
+      // In daylight: radius is whole map diagonal; in darkness: limited by token vision (e.g. 60ft)
+      const radiusPx = isDaylight ? maxMapDiagonal : rangeFeet * pixelsPerFoot;
       const tokX = (draggedTokenPosRef.current?.id === tok.id) ? draggedTokenPosRef.current.x : tok.x;
       const tokY = (draggedTokenPosRef.current?.id === tok.id) ? draggedTokenPosRef.current.y : tok.y;
       const origin: Point2D = { x: tokX, y: tokY };
 
-      // Sample 90 angular rays for higher precision around door frames and wall corners
+      // Collect angles: uniform angular samples + precise wall corner endpoint rays
+      const anglesSet = new Set<number>();
+      const numBaseRays = isDaylight ? 120 : 90;
+      for (let i = 0; i < numBaseRays; i++) {
+        anglesSet.add((i / numBaseRays) * Math.PI * 2);
+      }
+
+      // Add rays directed at all closed wall endpoints with small offset (+/- epsilon) for crisp shadow corners
+      for (const wall of closedWalls) {
+        for (const pt of [wall.p1, wall.p2]) {
+          const a = Math.atan2(pt.y - origin.y, pt.x - origin.x);
+          anglesSet.add(a);
+          anglesSet.add(a - 0.0001);
+          anglesSet.add(a + 0.0001);
+        }
+      }
+
+      const sortedAngles = Array.from(anglesSet).sort((a, b) => a - b);
       const points: Point2D[] = [];
-      const numRays = 90;
-      for (let i = 0; i < numRays; i++) {
-        const angle = (i / numRays) * Math.PI * 2;
+
+      for (const angle of sortedAngles) {
         const maxDist = radiusPx;
         let bestDist = maxDist;
+        const dx = Math.cos(angle);
+        const dy = Math.sin(angle);
 
-        for (const wall of map.walls) {
-          if (wall.isOpen) continue;
+        for (const wall of closedWalls) {
           const x1 = wall.p1.x, y1 = wall.p1.y;
           const x2 = wall.p2.x, y2 = wall.p2.y;
-
-          const dx = Math.cos(angle);
-          const dy = Math.sin(angle);
 
           const denom = (y2 - y1) * dx - (x2 - x1) * dy;
           if (Math.abs(denom) < 0.0001) continue;
@@ -860,8 +896,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         }
 
         points.push({
-          x: origin.x + Math.cos(angle) * bestDist,
-          y: origin.y + Math.sin(angle) * bestDist,
+          x: origin.x + dx * bestDist,
+          y: origin.y + dy * bestDist,
         });
       }
 

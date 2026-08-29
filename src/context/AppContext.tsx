@@ -50,6 +50,9 @@ interface AppContextType {
   setIsExternalDisplayModalOpen: (open: boolean) => void;
   projectMediaToDisplay: (media: ProjectedMedia) => void;
   clearProjectedMedia: () => void;
+  isSidebarCollapsed: boolean;
+  setIsSidebarCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  toggleSidebar: () => void;
 
   // Snapshots & Rollback
   snapshots: DatabaseSnapshot[];
@@ -194,6 +197,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [isExternalDisplayModalOpen, setIsExternalDisplayModalOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  // Global Ctrl+B shortcut to toggle sidebar collapse
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        const target = e.target as HTMLElement;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+          return;
+        }
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleSidebar]);
 
   // Cloud Sync State
   const [cloudSyncConfig, setCloudSyncConfig] = useState<{
@@ -1858,6 +1894,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsExternalDisplayModalOpen,
         projectMediaToDisplay,
         clearProjectedMedia,
+        isSidebarCollapsed,
+        setIsSidebarCollapsed,
+        toggleSidebar,
         snapshots,
         isRollbackModalOpen,
         setIsRollbackModalOpen,
