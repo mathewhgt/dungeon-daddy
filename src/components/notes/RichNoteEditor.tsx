@@ -22,6 +22,9 @@ import {
 } from 'lucide-react';
 import { CampaignNote, NoteCategory } from '../../types/campaign';
 import { CompendiumLinkModal } from './CompendiumLinkModal';
+import { DcCheckModal } from './DcCheckModal';
+import { SlashCommandMenu } from './SlashCommandMenu';
+import { Dices } from 'lucide-react';
 import { NoteContentRenderer } from './NoteEntityPopover';
 
 interface RichNoteEditorProps {
@@ -46,8 +49,108 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
   const [content, setContent] = useState(initialNote?.content || '');
   const [viewMode, setViewMode] = useState<'split' | 'edit' | 'preview'>('split');
   const [isCompendiumLinkOpen, setIsCompendiumLinkOpen] = useState(false);
+  const [isDcCheckModalOpen, setIsDcCheckModalOpen] = useState(false);
+
+  // Slash & Backslash Command State
+  const [slashMenu, setSlashMenu] = useState<{
+    isOpen: boolean;
+    query: string;
+    triggerChar: '/' | '\\';
+    triggerPos: number;
+    position: { top: number; left: number };
+  }>({
+    isOpen: false,
+    query: '',
+    triggerChar: '/',
+    triggerPos: 0,
+    position: { top: 0, left: 0 },
+  });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === '\\' || e.key === '/') {
+      const textarea = e.currentTarget;
+      const rect = textarea.getBoundingClientRect();
+      const cursorPos = textarea.selectionStart;
+      const textBefore = textarea.value.substring(0, cursorPos);
+      const lines = textBefore.split('\n');
+      const lineCount = lines.length;
+      const currentLineText = lines[lines.length - 1];
+
+      const top = rect.top + Math.min(lineCount * 20 + 25, rect.height - 100);
+      const left = rect.left + Math.min(currentLineText.length * 7 + 20, rect.width - 250);
+
+      setTimeout(() => {
+        setSlashMenu({
+          isOpen: true,
+          query: '',
+          triggerChar: e.key as '/' | '\\',
+          triggerPos: cursorPos,
+          position: { top, left },
+        });
+      }, 10);
+    }
+  };
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setContent(val);
+
+    const cursorPos = e.target.selectionStart;
+    const textBeforeCursor = val.substring(0, cursorPos);
+    const lastSlashIdx = textBeforeCursor.lastIndexOf('/');
+    const lastBackslashIdx = textBeforeCursor.lastIndexOf('\\');
+    const triggerIdx = Math.max(lastSlashIdx, lastBackslashIdx);
+
+    if (triggerIdx !== -1) {
+      const char = textBeforeCursor[triggerIdx] as '/' | '\\';
+      const textAfterTrigger = textBeforeCursor.substring(triggerIdx + 1);
+
+      if (!textAfterTrigger.includes('\n') && textAfterTrigger.length <= 20) {
+        const rect = textareaRef.current?.getBoundingClientRect();
+        if (rect) {
+          const lines = textBeforeCursor.split('\n');
+          const lineCount = lines.length;
+          const currentLineText = lines[lines.length - 1];
+          const top = rect.top + Math.min(lineCount * 20 + 25, rect.height - 100);
+          const left = rect.left + Math.min(currentLineText.length * 7 + 20, rect.width - 250);
+
+          setSlashMenu({
+            isOpen: true,
+            query: textAfterTrigger,
+            triggerChar: char,
+            triggerPos: triggerIdx,
+            position: { top, left },
+          });
+          return;
+        }
+      }
+    }
+
+    if (slashMenu.isOpen) {
+      setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+    }
+  };
+
+  const handleInsertSnippetFromSlash = (prefix: string, suffix = '') => {
+    if (!textareaRef.current) return;
+    const textarea = textareaRef.current;
+    const triggerPos = slashMenu.triggerPos;
+    const curPos = textarea.selectionStart;
+
+    // Remove the slash/backslash and filter query, replace with snippet
+    const beforeTrigger = content.substring(0, triggerPos);
+    const afterCur = content.substring(curPos);
+    const newContent = beforeTrigger + prefix + suffix + afterCur;
+    setContent(newContent);
+    setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(triggerPos + prefix.length, triggerPos + prefix.length);
+    }, 50);
+  };
 
   const insertTextAtCursor = (prefix: string, suffix = '') => {
     const textarea = textareaRef.current;
@@ -218,7 +321,40 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
         </div>
 
         {/* Formatting Toolbar */}
-        <div className="p-2 bg-surface-100 border-b border-surface-border flex items-center space-x-1 overflow-x-auto">
+        <div className="p-2 bg-surface-100 border-b border-surface-border flex items-center space-x-1.5 overflow-x-auto">
+          {/* 5e DC Check Button */}
+          <button
+            type="button"
+            onClick={() => setIsDcCheckModalOpen(true)}
+            className="px-3 py-1 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs flex items-center space-x-1.5 shadow-md"
+            title="Insert 5e Ability / Skill Check (DC Check Builder)"
+          >
+            <Dices className="w-4 h-4" />
+            <span>🎲 DC Check</span>
+          </button>
+
+          {/* Quick Slash Commands Trigger */}
+          <button
+            type="button"
+            onClick={(e) => {
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setSlashMenu({
+                isOpen: true,
+                query: '',
+                triggerChar: '\\',
+                triggerPos: textareaRef.current?.selectionStart || 0,
+                position: { top: rect.bottom + 8, left: rect.left },
+              });
+            }}
+            className="px-2.5 py-1 rounded-lg bg-surface-50 hover:bg-surface-hover border border-surface-border text-amber-300 font-mono text-xs font-bold flex items-center space-x-1.5"
+            title="Open Slash / Command Menu (or type \ or / in editor)"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>\ Slash Menu</span>
+          </button>
+
+          <div className="h-4 w-px bg-surface-border mx-1" />
+
           {/* D&D Block Styles */}
           <button
             type="button"
@@ -351,8 +487,9 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
               <textarea
                 ref={textareaRef}
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Write adventure notes, DM boxed text, dialogue, and secrets here..."
+                onChange={handleContentChange}
+                onKeyDown={handleKeyDown}
+                placeholder="Write adventure notes, DM boxed text, dialogue, and secrets here... (Type \ or / for commands)"
                 className="w-full flex-1 bg-transparent text-slate-100 text-xs font-mono resize-none focus:outline-none leading-relaxed p-2"
               />
             </div>
@@ -380,6 +517,33 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
         <CompendiumLinkModal
           onClose={() => setIsCompendiumLinkOpen(false)}
           onSelect={handleSelectCompendiumTag}
+        />
+      )}
+
+      {/* 5e DC Check Builder Modal */}
+      {isDcCheckModalOpen && (
+        <DcCheckModal
+          onClose={() => setIsDcCheckModalOpen(false)}
+          onInsert={(md) => insertTextAtCursor(md)}
+        />
+      )}
+
+      {/* Floating Slash / Backslash Command Menu */}
+      {slashMenu.isOpen && (
+        <SlashCommandMenu
+          query={slashMenu.query}
+          position={slashMenu.position}
+          onClose={() => setSlashMenu((prev) => ({ ...prev, isOpen: false }))}
+          onSelect={() => {}}
+          onOpenDcModal={() => {
+            setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+            setIsDcCheckModalOpen(true);
+          }}
+          onOpenCompendiumModal={() => {
+            setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+            setIsCompendiumLinkOpen(true);
+          }}
+          onInsertSnippet={handleInsertSnippetFromSlash}
         />
       )}
     </div>

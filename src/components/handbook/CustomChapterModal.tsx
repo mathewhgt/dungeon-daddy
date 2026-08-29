@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Edit3, Sparkles, BookOpen, Plus, Tag, FolderTree } from 'lucide-react';
+import { X, Save, Edit3, Sparkles, BookOpen, Plus, Tag, FolderTree, Dices } from 'lucide-react';
+import { DcCheckModal } from '../notes/DcCheckModal';
+import { SlashCommandMenu } from '../notes/SlashCommandMenu';
 import { CustomChapterEntity, HandbookChapter } from '../../types/handbook';
 
 interface CustomChapterModalProps {
@@ -27,6 +29,92 @@ export const CustomChapterModal: React.FC<CustomChapterModalProps> = ({
   const [category, setCategory] = useState<any>('species');
   const [tagsString, setTagsString] = useState('');
   const [content, setContent] = useState('');
+  const [isDcCheckModalOpen, setIsDcCheckModalOpen] = useState(false);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const [slashMenu, setSlashMenu] = useState<{
+    isOpen: boolean;
+    query: string;
+    triggerChar: '/' | '\\';
+    triggerPos: number;
+    position: { top: number; left: number };
+  }>({
+    isOpen: false,
+    query: '',
+    triggerChar: '/',
+    triggerPos: 0,
+    position: { top: 0, left: 0 },
+  });
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === '\\' || e.key === '/') {
+      const textarea = e.currentTarget;
+      const rect = textarea.getBoundingClientRect();
+      const cursorPos = textarea.selectionStart;
+      const textBefore = textarea.value.substring(0, cursorPos);
+      const lines = textBefore.split('\n');
+      const top = rect.top + Math.min(lines.length * 20 + 25, rect.height - 100);
+      const left = rect.left + Math.min(lines[lines.length - 1].length * 7 + 20, rect.width - 250);
+
+      setTimeout(() => {
+        setSlashMenu({
+          isOpen: true,
+          query: '',
+          triggerChar: e.key as '/' | '\\',
+          triggerPos: cursorPos,
+          position: { top, left },
+        });
+      }, 10);
+    }
+  };
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setContent(val);
+
+    const cursorPos = e.target.selectionStart;
+    const textBeforeCursor = val.substring(0, cursorPos);
+    const lastSlashIdx = textBeforeCursor.lastIndexOf('/');
+    const lastBackslashIdx = textBeforeCursor.lastIndexOf('\\');
+    const triggerIdx = Math.max(lastSlashIdx, lastBackslashIdx);
+
+    if (triggerIdx !== -1) {
+      const char = textBeforeCursor[triggerIdx] as '/' | '\\';
+      const textAfterTrigger = textBeforeCursor.substring(triggerIdx + 1);
+
+      if (!textAfterTrigger.includes('\n') && textAfterTrigger.length <= 20) {
+        const rect = textareaRef.current?.getBoundingClientRect();
+        if (rect) {
+          const lines = textBeforeCursor.split('\n');
+          const top = rect.top + Math.min(lines.length * 20 + 25, rect.height - 100);
+          const left = rect.left + Math.min(lines[lines.length - 1].length * 7 + 20, rect.width - 250);
+
+          setSlashMenu({
+            isOpen: true,
+            query: textAfterTrigger,
+            triggerChar: char,
+            triggerPos: triggerIdx,
+            position: { top, left },
+          });
+          return;
+        }
+      }
+    }
+
+    if (slashMenu.isOpen) {
+      setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+    }
+  };
+
+  const handleInsertSnippet = (prefix: string, suffix = '') => {
+    if (!textareaRef.current) return;
+    const textarea = textareaRef.current;
+    const triggerPos = slashMenu.triggerPos;
+    const curPos = textarea.selectionStart;
+    const before = content.substring(0, triggerPos);
+    const after = content.substring(curPos);
+    setContent(before + prefix + suffix + after);
+    setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+  };
 
   useEffect(() => {
     if (initialChapter) {
@@ -177,6 +265,15 @@ export const CustomChapterModal: React.FC<CustomChapterModalProps> = ({
               
               {/* Insert Reference Card helper */}
               <div className="flex items-center space-x-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsDcCheckModalOpen(true)}
+                  className="px-2 py-0.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] flex items-center space-x-1"
+                >
+                  <Dices className="w-3 h-3" />
+                  <span>🎲 DC Check</span>
+                </button>
+
                 <span className="text-[10px] text-amber-400 font-bold flex items-center space-x-1">
                   <Sparkles className="w-3 h-3" />
                   <span>Insert Reference:</span>
@@ -243,9 +340,11 @@ export const CustomChapterModal: React.FC<CustomChapterModalProps> = ({
               </div>
             </div>
             <textarea
+              ref={textareaRef}
               required
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={handleContentChange}
+              onKeyDown={handleKeyDown}
               className="w-full flex-1 bg-surface-50 border border-surface-border rounded-lg p-3 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-500 resize-none leading-relaxed"
             />
           </div>
@@ -268,6 +367,30 @@ export const CustomChapterModal: React.FC<CustomChapterModalProps> = ({
           </div>
         </form>
       </div>
+
+      {isDcCheckModalOpen && (
+        <DcCheckModal
+          onClose={() => setIsDcCheckModalOpen(false)}
+          onInsert={(md) => setContent((prev) => prev + '\n' + md)}
+        />
+      )}
+
+      {slashMenu.isOpen && (
+        <SlashCommandMenu
+          query={slashMenu.query}
+          position={slashMenu.position}
+          onClose={() => setSlashMenu((prev) => ({ ...prev, isOpen: false }))}
+          onSelect={() => {}}
+          onOpenDcModal={() => {
+            setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+            setIsDcCheckModalOpen(true);
+          }}
+          onOpenCompendiumModal={() => {
+            setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+          }}
+          onInsertSnippet={handleInsertSnippet}
+        />
+      )}
     </div>
   );
 };

@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
+import { InteractiveDcCheckCard } from './InteractiveDcCheckCard';
 import { 
-  Sparkles, 
+  Sparkles,
+  AlertTriangle,
+  Lightbulb,
+  Dices, 
   Swords, 
   BookOpen, 
   ShieldAlert, 
@@ -43,6 +47,10 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
 
     let inSecrets = false;
     let secretsBuffer: string[] = [];
+
+    let inCheck = false;
+    let checkMeta = { skill: 'Wisdom (Perception)', dc: '15' };
+    let checkBuffer: string[] = [];
 
     let inTable = false;
     let tableBuffer: string[] = [];
@@ -183,6 +191,58 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
         return;
       }
 
+      // DC Check Block
+      if (trimmed.toLowerCase().startsWith(':::check')) {
+        inCheck = true;
+        checkBuffer = [];
+        const skillMatch = line.match(/skill=["']([^"']+)["']/i);
+        const dcMatch = line.match(/dc=["']([^"']+)["']/i);
+        checkMeta = {
+          skill: skillMatch ? skillMatch[1] : 'Wisdom (Perception)',
+          dc: dcMatch ? dcMatch[1] : '15',
+        };
+        return;
+      }
+      if (inCheck && trimmed === ':::') {
+        inCheck = false;
+        elements.push(
+          <InteractiveDcCheckCard
+            key={`check-${lineIdx}`}
+            skill={checkMeta.skill}
+            dcStr={checkMeta.dc}
+            rawLines={checkBuffer}
+            renderInline={renderInlineTags}
+          />
+        );
+        return;
+      }
+      if (inCheck) {
+        checkBuffer.push(line);
+        return;
+      }
+
+      // Callout Alerts (> [!WARNING], > [!TIP], > [!NOTE], etc)
+      if (trimmed.startsWith('> [!WARNING]') || trimmed.startsWith('> [!CAUTION]')) {
+        const alertContent = trimmed.replace(/^>s*[!(WARNING|CAUTION)]s*/i, '');
+        elements.push(
+          <div key={`alert-warn-${lineIdx}`} className="my-3 p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/50 text-amber-200 text-xs leading-relaxed flex items-start space-x-2.5 shadow-md">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex-1 select-text">{renderInlineTags(alertContent || 'Warning')}</div>
+          </div>
+        );
+        return;
+      }
+      if (trimmed.startsWith('> [!TIP]') || trimmed.startsWith('> [!NOTE]')) {
+        const alertContent = trimmed.replace(/^>s*[!(TIP|NOTE)]s*/i, '');
+        elements.push(
+          <div key={`alert-tip-${lineIdx}`} className="my-3 p-3.5 rounded-xl bg-blue-950/40 border border-blue-500/50 text-blue-200 text-xs leading-relaxed flex items-start space-x-2.5 shadow-md">
+            <Lightbulb className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+            <div className="flex-1 select-text">{renderInlineTags(alertContent || 'Tip')}</div>
+          </div>
+        );
+        return;
+      }
+
       // Markdown Tables
       if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
         inTable = true;
@@ -228,9 +288,9 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
         return;
       }
 
-      // Blank line
+      // Blank line (Consistent vertical paragraph spacing)
       if (!trimmed) {
-        elements.push(<div key={lineIdx} className="h-2.5" />);
+        elements.push(<div key={lineIdx} className="h-4" />);
         return;
       }
 
