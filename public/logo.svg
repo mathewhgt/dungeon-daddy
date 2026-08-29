@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#121826" />
+      <stop offset="100%" stop-color="#090d12" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+  </defs>
+  <rect x="12" y="12" width="232" height="232" rx="40" fill="url(#bgGrad)" stroke="#f59e0b" stroke-width="6" />
+  <g transform="translate(128, 128)">
+    <!-- Outer D20 Hexagon -->
+    <polygon points="0,-72 62.35,-36 62.35,36 0,72 -62.35,36 -62.35,-36" fill="none" stroke="#fef3c7" stroke-width="3.5" />
+    <!-- Inner D20 Triangle -->
+    <polygon points="0,-41.76 36.17,20.88 -36.17,20.88" fill="url(#goldGrad)" stroke="#fef3c7" stroke-width="3.5" />
+    <!-- Connecting Facet Lines -->
+    <line x1="0" y1="-72" x2="36.17" y2="20.88" stroke="#fef3c7" stroke-width="3.5" />
+    <line x1="62.35" y1="-36" x2="0" y2="-41.76" stroke="#fef3c7" stroke-width="3.5" />
+    <line x1="62.35" y1="36" x2="0" y2="-41.76" stroke="#fef3c7" stroke-width="3.5" />
+    <line x1="0" y1="72" x2="-36.17" y2="20.88" stroke="#fef3c7" stroke-width="3.5" />
+    <line x1="-62.35" y1="36" x2="-36.17" y2="20.88" stroke="#fef3c7" stroke-width="3.5" />
+    <line x1="-62.35" y1="-36" x2="36.17" y2="20.88" stroke="#fef3c7" stroke-width="3.5" />
+    <!-- Dungeon Daddy Emblem -->
+    <text x="0" y="4" font-family="'Cinzel', 'Arial Black', sans-serif" font-size="20" font-weight="900" fill="#0f172a" text-anchor="middle" dominant-baseline="central" letter-spacing="0.5">DD</text>
+  </g>
+</svg>
