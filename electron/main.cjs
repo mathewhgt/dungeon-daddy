@@ -878,6 +878,28 @@ function setupAutoUpdater() {
     });
   });
 
+  function execGit(cmd, cwd, timeoutMs = 25000) {
+    return new Promise((resolve) => {
+      const workingDir = cwd || path.join(__dirname, '..');
+      exec(cmd, { cwd: workingDir, timeout: timeoutMs }, (error, stdout, stderr) => {
+        if (error) {
+          resolve({ success: false, error: error.message, stdout: (stdout || '').trim(), stderr: (stderr || '').trim() });
+        } else {
+          resolve({ success: true, stdout: (stdout || '').trim(), stderr: (stderr || '').trim() });
+        }
+      });
+    });
+  }
+
+  function getProjectRoot() {
+    return path.join(__dirname, '..');
+  }
+
+  function hasGitRepo() {
+    const gitDir = path.join(getProjectRoot(), '.git');
+    return fs.existsSync(gitDir);
+  }
+
   ipcMain.handle('updater:getAppVersion', () => {
     return {
       version: app.getVersion(),
@@ -887,21 +909,121 @@ function setupAutoUpdater() {
     };
   });
 
+  ipcMain.handle('updater:getGitInfo', async () => {
+    const root = getProjectRoot();
+    const hasGit = hasGitRepo();
+    if (!hasGit) {
+      return {
+        hasGit: false,
+        isPackaged: app.isPackaged,
+        owner: 'mathewhgt',
+        repo: 'dungeon-daddy',
+        remoteUrl: 'https://github.com/mathewhgt/dungeon-daddy.git',
+      };
+    }
+
+    const [remoteRes, branchRes, commitRes] = await Promise.all([
+      execGit('git remote get-url origin', root),
+      execGit('git branch --show-current', root),
+      execGit('git log -1 --format="%h|%s|%cr|%an"', root),
+    ]);
+
+    const remoteUrl = remoteRes.success ? remoteRes.stdout : 'https://github.com/mathewhgt/dungeon-daddy.git';
+    const branch = branchRes.success && branchRes.stdout ? branchRes.stdout : 'main';
+    
+    let commit = { hash: '', subject: '', time: '', author: '' };
+    if (commitRes.success && commitRes.stdout) {
+      const parts = commitRes.stdout.split('|');
+      commit = {
+        hash: parts[0] || '',
+        subject: parts[1] || '',
+        time: parts[2] || '',
+        author: parts[3] || '',
+      };
+    }
+
+    // Parse GitHub owner/repo if applicable
+    let owner = 'mathewhgt';
+    let repo = 'dungeon-daddy';
+    const match = remoteUrl.match(/github\.com[/:]([^/]+)\/([^/.]+)/i);
+    if (match) {
+      owner = match[1];
+      repo = match[2];
+    }
+
+    return {
+      hasGit: true,
+      isPackaged: app.isPackaged,
+      remoteUrl,
+      owner,
+      repo,
+      branch,
+      commit,
+    };
+  });
+
   ipcMain.handle('updater:checkForUpdates', async (event, customFeed) => {
     try {
-      if (!app.isPackaged) {
-        return {
-          success: true,
-          status: 'dev-mode',
-          version: app.getVersion(),
-          message: 'Running in development mode. Updates are checked in packaged builds.',
-        };
+      broadcastUpdateStatus({ status: 'checking' });
+      const root = getProjectRoot();
+      const hasGit = hasGitRepo();
+
+      // Mode A: Git Working Tree (Local Git Clone)
+      if (hasGit) {
+        const branchRes = await execGit('git branch --show-current', root);
+        const branch = branchRes.success && branchRes.stdout ? branchRes.stdout : 'main';
+
+        // 1. Fetch from remote
+        const fetchRes = await execGit(`git fetch origin ${branch}`, root);
+        if (!fetchRes.success) {
+          console.warn('Git fetch returned error/warning:', fetchRes.stderr || fetchRes.error);
+        }
+
+        // 2. Check how many commits behind origin
+        const countRes = await execGit(`git rev-list HEAD..origin/${branch} --count`, root);
+        const commitsBehind = countRes.success ? parseInt(countRes.stdout, 10) || 0 : 0;
+
+        if (commitsBehind > 0) {
+          const logRes = await execGit(`git log HEAD..origin/${branch} --format="%h - %s (%cr)" -n 10`, root);
+          const commitLogs = logRes.success && logRes.stdout ? logRes.stdout.split('\n').filter(Boolean) : [];
+
+          const updateData = {
+            status: 'git-update-available',
+            commitsBehind,
+            commitLogs,
+            branch,
+            version: app.getVersion(),
+          };
+          broadcastUpdateStatus(updateData);
+          return { success: true, ...updateData };
+        } else {
+          const updateData = {
+            status: 'not-available',
+            commitsBehind: 0,
+            branch,
+            version: app.getVersion(),
+            message: `Git repository is up to date with origin/${branch}.`,
+          };
+          broadcastUpdateStatus(updateData);
+          return { success: true, ...updateData };
+        }
       }
-      if (customFeed) {
-        autoUpdater.setFeedURL(customFeed);
+
+      // Mode B: Packaged binary on other devices without .git
+      if (app.isPackaged) {
+        if (customFeed) {
+          autoUpdater.setFeedURL(customFeed);
+        }
+        const checkResult = await autoUpdater.checkForUpdates();
+        return { success: true, updateInfo: checkResult?.updateInfo };
       }
-      const checkResult = await autoUpdater.checkForUpdates();
-      return { success: true, updateInfo: checkResult?.updateInfo };
+
+      // Fallback if neither
+      broadcastUpdateStatus({
+        status: 'not-available',
+        version: app.getVersion(),
+      });
+      return { success: true, status: 'not-available' };
     } catch (err) {
       console.error('Check for updates error:', err);
       broadcastUpdateStatus({ status: 'error', error: err.message });
@@ -909,10 +1031,60 @@ function setupAutoUpdater() {
     }
   });
 
+  ipcMain.handle('updater:pullGitUpdate', async () => {
+    try {
+      const root = getProjectRoot();
+      const hasGit = hasGitRepo();
+      if (!hasGit) {
+        return { success: false, error: 'Not a git repository.' };
+      }
+
+      broadcastUpdateStatus({ status: 'git-pulling' });
+
+      const branchRes = await execGit('git branch --show-current', root);
+      const branch = branchRes.success && branchRes.stdout ? branchRes.stdout : 'main';
+
+      // Run git pull
+      const pullRes = await execGit(`git pull origin ${branch}`, root);
+      if (!pullRes.success) {
+        broadcastUpdateStatus({ status: 'error', error: pullRes.error || pullRes.stderr });
+        return { success: false, error: pullRes.error || pullRes.stderr };
+      }
+
+      // Build frontend Vite assets
+      const buildRes = await execGit('npm run build', root, 60000);
+
+      broadcastUpdateStatus({
+        status: 'git-pulled',
+        output: pullRes.stdout,
+        buildOutput: buildRes.stdout,
+      });
+
+      return {
+        success: true,
+        output: pullRes.stdout,
+      };
+    } catch (err) {
+      console.error('Git pull error:', err);
+      broadcastUpdateStatus({ status: 'error', error: err.message });
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('updater:relaunch', () => {
+    try {
+      app.relaunch();
+      app.exit(0);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('updater:downloadUpdate', async () => {
     try {
       if (!app.isPackaged) {
-        return { success: false, error: 'Cannot download updates in dev mode.' };
+        return { success: false, error: 'Cannot download binary installer in dev mode. Use Git Pull instead.' };
       }
       await autoUpdater.downloadUpdate();
       return { success: true };

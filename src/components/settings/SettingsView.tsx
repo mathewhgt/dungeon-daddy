@@ -25,7 +25,11 @@ import {
   ShieldCheck,
   Layers,
   Terminal,
-  ExternalLink
+  ExternalLink,
+  GitBranch,
+  GitCommit,
+  GitPullRequest,
+  ArrowDownToLine
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { formatBytes } from '../../services/storageService';
@@ -74,8 +78,36 @@ export const SettingsView: React.FC = () => {
     arch: 'x64',
   });
 
+  const [gitInfo, setGitInfo] = useState<{
+    hasGit: boolean;
+    remoteUrl?: string;
+    owner?: string;
+    repo?: string;
+    branch?: string;
+    commit?: {
+      hash: string;
+      subject: string;
+      time: string;
+      author: string;
+    };
+  }>({
+    hasGit: false,
+    remoteUrl: 'https://github.com/mathewhgt/dungeon-daddy.git',
+    owner: 'mathewhgt',
+    repo: 'dungeon-daddy',
+    branch: 'main',
+  });
+
+  const [gitUpdateInfo, setGitUpdateInfo] = useState<{
+    commitsBehind: number;
+    commitLogs: string[];
+    branch: string;
+  } | null>(null);
+
+  const [gitPullOutput, setGitPullOutput] = useState<string | null>(null);
+
   const [updateStatus, setUpdateStatus] = useState<
-    'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error' | 'dev-mode'
+    'idle' | 'checking' | 'available' | 'git-update-available' | 'git-pulling' | 'git-pulled' | 'not-available' | 'downloading' | 'downloaded' | 'error' | 'dev-mode'
   >('idle');
   const [updateProgress, setUpdateProgress] = useState<{
     percent: number;
@@ -90,6 +122,15 @@ export const SettingsView: React.FC = () => {
   } | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
 
+  const loadGitInfo = async () => {
+    if ((window as any).electronAPI?.updater?.getGitInfo) {
+      try {
+        const info = await (window as any).electronAPI.updater.getGitInfo();
+        if (info) setGitInfo(info);
+      } catch (e) {}
+    }
+  };
+
   useEffect(() => {
     if ((window as any).electronAPI?.updater) {
       const api = (window as any).electronAPI.updater;
@@ -97,11 +138,26 @@ export const SettingsView: React.FC = () => {
         if (info) setAppVersionInfo(info);
       }).catch(() => {});
 
+      loadGitInfo();
+
       const cleanup = api.onStatusChange((event: any) => {
         if (!event) return;
         if (event.status === 'checking') {
           setUpdateStatus('checking');
           setUpdateError(null);
+        } else if (event.status === 'git-update-available') {
+          setUpdateStatus('git-update-available');
+          setGitUpdateInfo({
+            commitsBehind: event.commitsBehind || 1,
+            commitLogs: event.commitLogs || [],
+            branch: event.branch || 'main',
+          });
+        } else if (event.status === 'git-pulling') {
+          setUpdateStatus('git-pulling');
+        } else if (event.status === 'git-pulled') {
+          setUpdateStatus('git-pulled');
+          setGitPullOutput(event.output || 'Git pull completed.');
+          loadGitInfo();
         } else if (event.status === 'available') {
           setUpdateStatus('available');
           setUpdateInfo({
@@ -111,6 +167,7 @@ export const SettingsView: React.FC = () => {
           });
         } else if (event.status === 'not-available') {
           setUpdateStatus('not-available');
+          setGitUpdateInfo(null);
         } else if (event.status === 'downloading') {
           setUpdateStatus('downloading');
           setUpdateProgress({
@@ -145,8 +202,16 @@ export const SettingsView: React.FC = () => {
     setUpdateError(null);
     try {
       const res = await (window as any).electronAPI.updater.checkForUpdates();
-      if (res?.status === 'dev-mode') {
-        setUpdateStatus('dev-mode');
+      if (res?.status === 'git-update-available') {
+        setUpdateStatus('git-update-available');
+        setGitUpdateInfo({
+          commitsBehind: res.commitsBehind || 1,
+          commitLogs: res.commitLogs || [],
+          branch: res.branch || 'main',
+        });
+      } else if (res?.status === 'not-available') {
+        setUpdateStatus('not-available');
+        setGitUpdateInfo(null);
       } else if (!res?.success && res?.error) {
         setUpdateStatus('error');
         setUpdateError(res.error);
@@ -154,6 +219,35 @@ export const SettingsView: React.FC = () => {
     } catch (err: any) {
       setUpdateStatus('error');
       setUpdateError(err?.message || 'Error communicating with update server.');
+    }
+  };
+
+  const handlePullGitUpdate = async () => {
+    if (!(window as any).electronAPI?.updater) return;
+    setUpdateStatus('git-pulling');
+    setUpdateError(null);
+    try {
+      const res = await (window as any).electronAPI.updater.pullGitUpdate();
+      if (res?.success) {
+        setUpdateStatus('git-pulled');
+        setGitPullOutput(res.output || 'Git pull completed.');
+        showToast('Updated successfully from Git! Relaunching...');
+        setTimeout(() => {
+          (window as any).electronAPI?.updater?.relaunch?.();
+        }, 1200);
+      } else {
+        setUpdateStatus('error');
+        setUpdateError(res?.error || 'Failed to pull updates from Git.');
+      }
+    } catch (err: any) {
+      setUpdateStatus('error');
+      setUpdateError(err?.message || 'Failed to pull updates from Git.');
+    }
+  };
+
+  const handleRelaunch = () => {
+    if ((window as any).electronAPI?.updater?.relaunch) {
+      (window as any).electronAPI.updater.relaunch();
     }
   };
 
@@ -492,28 +586,115 @@ export const SettingsView: React.FC = () => {
             </button>
           </div>
 
+          {/* Git Remote Repository & Branch Card */}
+          <div className="p-3.5 rounded-lg bg-surface-50/80 border border-surface-border flex items-center justify-between text-xs">
+            <div className="flex items-center space-x-3 truncate">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
+                <GitBranch className="w-4 h-4" />
+              </div>
+              <div className="truncate">
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-slate-200">Git Repository:</span>
+                  <span className="px-2 py-0.2 rounded bg-surface-100 text-purple-300 font-mono text-[11px] border border-surface-border">
+                    origin/{gitInfo.branch || 'main'}
+                  </span>
+                  {gitInfo.commit?.hash && (
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      (Commit {gitInfo.commit.hash})
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-slate-400 truncate mt-0.5 font-mono">
+                  {gitInfo.remoteUrl || 'https://github.com/mathewhgt/dungeon-daddy.git'}
+                </div>
+              </div>
+            </div>
+
+            <a
+              href={gitInfo.remoteUrl?.replace(/\.git$/, '') || 'https://github.com/mathewhgt/dungeon-daddy'}
+              target="_blank"
+              rel="noreferrer"
+              className="px-2.5 py-1 rounded bg-surface-100 hover:bg-surface-hover border border-surface-border text-slate-300 hover:text-white text-[11px] font-semibold flex items-center space-x-1 shrink-0 transition-colors"
+            >
+              <span>GitHub Repo</span>
+              <ExternalLink className="w-3 h-3 text-slate-400" />
+            </a>
+          </div>
+
           {/* Update Status Banner */}
           {updateStatus !== 'idle' && (
             <div className="p-4 rounded-lg bg-surface-50 border border-surface-border space-y-3">
               {updateStatus === 'checking' && (
                 <div className="flex items-center space-x-2 text-xs text-slate-300">
                   <RefreshCw className="w-4 h-4 text-purple-400 animate-spin" />
-                  <span>Connecting to update feed and checking for newer releases...</span>
+                  <span>Connecting to Git remote and checking for newer commits/releases...</span>
+                </div>
+              )}
+
+              {/* Git Update Available (Pull from Git) */}
+              {updateStatus === 'git-update-available' && gitUpdateInfo && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 text-xs text-amber-300 font-semibold">
+                      <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+                      <span>
+                        {gitUpdateInfo.commitsBehind} New {gitUpdateInfo.commitsBehind === 1 ? 'Commit' : 'Commits'} Available on origin/{gitUpdateInfo.branch}!
+                      </span>
+                    </div>
+                    <button
+                      onClick={handlePullGitUpdate}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow-lg flex items-center space-x-1.5 animate-pulse transition-all"
+                    >
+                      <ArrowDownToLine className="w-4 h-4" />
+                      <span>Pull from Git & Relaunch</span>
+                    </button>
+                  </div>
+
+                  {gitUpdateInfo.commitLogs.length > 0 && (
+                    <div className="p-3 bg-surface-100/90 rounded-lg border border-surface-border space-y-1">
+                      <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Incoming Commits:</div>
+                      <div className="text-xs text-slate-300 font-mono space-y-1 max-h-32 overflow-y-auto">
+                        {gitUpdateInfo.commitLogs.map((log, idx) => (
+                          <div key={idx} className="truncate text-slate-300 flex items-center space-x-1.5">
+                            <GitCommit className="w-3 h-3 text-purple-400 shrink-0" />
+                            <span>{log}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Git Pulling in Progress */}
+              {updateStatus === 'git-pulling' && (
+                <div className="flex items-center space-x-2 text-xs text-purple-300">
+                  <RefreshCw className="w-4 h-4 text-purple-400 animate-spin" />
+                  <span>Pulling latest changes from Git and rebuilding application bundle...</span>
+                </div>
+              )}
+
+              {/* Git Pulled Success */}
+              {updateStatus === 'git-pulled' && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 text-xs text-emerald-400 font-semibold">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>Successfully pulled updates from Git! Relaunching application...</span>
+                  </div>
+                  <button
+                    onClick={handleRelaunch}
+                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow transition-colors"
+                  >
+                    Relaunch Now
+                  </button>
                 </div>
               )}
 
               {updateStatus === 'not-available' && (
                 <div className="flex items-center space-x-2 text-xs text-emerald-400">
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>You are running the latest version of Dungeon Daddy (v{appVersionInfo.version}).</span>
-                </div>
-              )}
-
-              {updateStatus === 'dev-mode' && (
-                <div className="flex items-center space-x-2 text-xs text-amber-400">
-                  <Terminal className="w-4 h-4 shrink-0" />
                   <span>
-                    Currently in development mode. Packaging scripts (<code className="bg-surface-100 px-1 py-0.5 rounded text-amber-300">npm run package</code>) produce standalone installers and portable executables.
+                    You are running the latest version of Dungeon Daddy (v{appVersionInfo.version}) • Up to date with origin/{gitInfo.branch || 'main'}!
                   </span>
                 </div>
               )}
@@ -523,7 +704,7 @@ export const SettingsView: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2 text-xs text-amber-300 font-semibold">
                       <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
-                      <span>New Update Available: v{updateInfo.version}</span>
+                      <span>New Binary Release Available: v{updateInfo.version}</span>
                     </div>
                     <button
                       onClick={handleDownloadUpdate}
@@ -584,7 +765,7 @@ export const SettingsView: React.FC = () => {
                 <div className="flex items-start space-x-2 text-xs text-red-400">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <span className="font-semibold">Update check or download encountered an issue:</span>
+                    <span className="font-semibold">Update check or pull encountered an issue:</span>
                     <p className="text-[11px] text-slate-400 font-mono">{updateError}</p>
                   </div>
                 </div>

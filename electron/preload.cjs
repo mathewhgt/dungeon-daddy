@@ -58,7 +58,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Application Auto-Update APIs
   updater: {
     getVersion: () => ipcRenderer.invoke('updater:getAppVersion'),
+    getGitInfo: () => ipcRenderer.invoke('updater:getGitInfo'),
     checkForUpdates: (customFeed) => ipcRenderer.invoke('updater:checkForUpdates', customFeed),
+    pullGitUpdate: () => ipcRenderer.invoke('updater:pullGitUpdate'),
+    relaunch: () => ipcRenderer.invoke('updater:relaunch'),
     downloadUpdate: () => ipcRenderer.invoke('updater:downloadUpdate'),
     quitAndInstall: () => ipcRenderer.invoke('updater:quitAndInstall'),
     onStatusChange: (callback) => {

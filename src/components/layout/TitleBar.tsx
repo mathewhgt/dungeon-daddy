@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Minus, Square, Copy, X, Sparkles, Swords, Compass, Tv, Cast, Cloud, RefreshCw } from 'lucide-react';
+import { Minus, Square, Copy, X, Sparkles, Swords, Compass, Tv, Cast, Cloud, RefreshCw, GitBranch } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ExternalDisplayModal } from '../player/ExternalDisplayModal';
 
@@ -15,12 +15,14 @@ export const TitleBar: React.FC = () => {
     cloudSyncConfig,
     isSyncing,
     hasUnsavedCloudChanges,
-    syncNow
+    syncNow,
+    setActiveTab
   } = useApp();
   
   const [isMaximized, setIsMaximized] = useState(false);
   const [isPlayerWindowOpen, setIsPlayerWindowOpen] = useState(false);
   const [updateDownloaded, setUpdateDownloaded] = useState<string | null>(null);
+  const [gitUpdateAvailable, setGitUpdateAvailable] = useState<number | null>(null);
 
   const activeCampaign = db.campaigns.find((c) => c.id === activeCampaignId);
 
@@ -46,6 +48,10 @@ export const TitleBar: React.FC = () => {
       const cleanup = (window as any).electronAPI.updater.onStatusChange((status: any) => {
         if (status?.status === 'downloaded') {
           setUpdateDownloaded(status.version || 'New Version');
+        } else if (status?.status === 'git-update-available') {
+          setGitUpdateAvailable(status.commitsBehind || 1);
+        } else if (status?.status === 'not-available' || status?.status === 'git-pulled') {
+          setGitUpdateAvailable(null);
         }
       });
       return () => cleanup?.();
@@ -156,6 +162,18 @@ export const TitleBar: React.FC = () => {
               )}
               <span>{isSyncing ? 'Syncing...' : hasUnsavedCloudChanges ? 'Sync Now' : 'Synced'}</span>
               <span className={`w-1.5 h-1.5 rounded-full ${hasUnsavedCloudChanges ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
+            </button>
+          )}
+
+          {/* Git Update Available Alert Button */}
+          {gitUpdateAvailable && !updateDownloaded && (
+            <button
+              onClick={() => setActiveTab('settings')}
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded bg-purple-500/20 border border-purple-500/50 text-purple-300 hover:bg-purple-500/30 transition-all text-xs font-semibold animate-pulse shadow-md shadow-purple-950/50"
+              title="Git updates available - click to view in Settings"
+            >
+              <GitBranch className="w-3.5 h-3.5 text-purple-400" />
+              <span>Git Update ({gitUpdateAvailable} new)</span>
             </button>
           )}
 

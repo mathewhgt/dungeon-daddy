@@ -62,7 +62,14 @@
     },
     "portable": {
       "artifactName": "Dungeon-Daddy-Portable-${version}.${ext}"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "mathewhgt",
+        "repo": "dungeon-daddy"
+      }
+    ]
   },
   "dependencies": {
     "clsx": "^2.1.1",
