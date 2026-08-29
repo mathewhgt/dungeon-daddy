@@ -508,6 +508,16 @@ function createWindow() {
   let syncWatcher = null;
   let lastInternalWriteTime = 0;
 
+  function getLegacyUserDataPaths() {
+    const appData = app.getPath('appData');
+    return [
+      path.join(appData, 'dungeon-daddy'),
+      path.join(appData, 'encounter-plus-desktop'),
+      path.join(appData, 'Encounter+'),
+      path.join(appData, 'dungeon-daddy-desktop')
+    ];
+  }
+
   function getSyncConfigPath() {
     return path.join(app.getPath('userData'), 'sync_config.json');
   }
@@ -517,6 +527,20 @@ function createWindow() {
       const cfgPath = getSyncConfigPath();
       if (fs.existsSync(cfgPath)) {
         return JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
+      }
+
+      // Check legacy paths if current folder has no sync config
+      for (const legacyDir of getLegacyUserDataPaths()) {
+        const legacyCfg = path.join(legacyDir, 'sync_config.json');
+        if (fs.existsSync(legacyCfg)) {
+          const content = fs.readFileSync(legacyCfg, 'utf-8');
+          try {
+            // Copy to active userData directory
+            fs.mkdirSync(app.getPath('userData'), { recursive: true });
+            fs.writeFileSync(cfgPath, content, 'utf-8');
+            return JSON.parse(content);
+          } catch (e) {}
+        }
       }
     } catch (e) {
       console.error('Error reading sync config:', e);
@@ -770,7 +794,13 @@ function createWindow() {
       const content = typeof databaseJson === 'string' ? databaseJson : JSON.stringify(databaseJson, null, 2);
       await fs.promises.writeFile(targetFile, content, 'utf-8');
 
-      // Also mirror to local database file in AppData
+      // Also write legacy filename in cloud folder for backward compatibility
+      try {
+        const legacyTarget = path.join(cfg.folderPath, LEGACY_SYNC_DB_FILENAME);
+        await fs.promises.writeFile(legacyTarget, content, 'utf-8');
+      } catch (e) {}
+
+      // Also mirror to local database file in active AppData
       try {
         const localDbPath = path.join(app.getPath('userData'), 'local_database.json');
         await fs.promises.writeFile(localDbPath, content, 'utf-8');
@@ -794,6 +824,20 @@ function createWindow() {
         const content = await fs.promises.readFile(localDbPath, 'utf-8');
         const stats = await fs.promises.stat(localDbPath);
         return { success: true, content, size: stats.size, mtime: stats.mtime.toISOString() };
+      }
+
+      // Check legacy AppData paths
+      for (const legacyDir of getLegacyUserDataPaths()) {
+        const legacyDb = path.join(legacyDir, 'local_database.json');
+        if (fs.existsSync(legacyDb)) {
+          const content = await fs.promises.readFile(legacyDb, 'utf-8');
+          const stats = await fs.promises.stat(legacyDb);
+          try {
+            fs.mkdirSync(app.getPath('userData'), { recursive: true });
+            await fs.promises.writeFile(localDbPath, content, 'utf-8');
+          } catch (e) {}
+          return { success: true, content, size: stats.size, mtime: stats.mtime.toISOString() };
+        }
       }
     } catch (err) {
       console.error('Failed to read local database from AppData:', err);
