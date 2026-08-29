@@ -105,9 +105,21 @@ export const SettingsView: React.FC = () => {
   } | null>(null);
 
   const [gitPullOutput, setGitPullOutput] = useState<string | null>(null);
+  const [githubLiveInfo, setGithubLiveInfo] = useState<{
+    version?: string;
+    currentVersion?: string;
+    latestCommit?: {
+      hash: string;
+      message: string;
+      date: string;
+      author: string;
+      htmlUrl: string;
+    };
+    message?: string;
+  } | null>(null);
 
   const [updateStatus, setUpdateStatus] = useState<
-    'idle' | 'checking' | 'available' | 'git-update-available' | 'git-pulling' | 'git-pulled' | 'not-available' | 'downloading' | 'downloaded' | 'error' | 'dev-mode'
+    'idle' | 'checking' | 'available' | 'git-update-available' | 'git-pulling' | 'git-pulled' | 'github-live' | 'not-available' | 'downloading' | 'downloaded' | 'error' | 'dev-mode'
   >('idle');
   const [updateProgress, setUpdateProgress] = useState<{
     percent: number;
@@ -165,9 +177,18 @@ export const SettingsView: React.FC = () => {
             releaseNotes: event.releaseNotes,
             releaseDate: event.releaseDate,
           });
+        } else if (event.status === 'github-live') {
+          setUpdateStatus('github-live');
+          setGithubLiveInfo({
+            version: event.version,
+            currentVersion: event.currentVersion,
+            latestCommit: event.latestCommit,
+            message: event.message,
+          });
         } else if (event.status === 'not-available') {
           setUpdateStatus('not-available');
           setGitUpdateInfo(null);
+          setGithubLiveInfo(null);
         } else if (event.status === 'downloading') {
           setUpdateStatus('downloading');
           setUpdateProgress({
@@ -209,9 +230,18 @@ export const SettingsView: React.FC = () => {
           commitLogs: res.commitLogs || [],
           branch: res.branch || 'main',
         });
+      } else if (res?.status === 'github-live') {
+        setUpdateStatus('github-live');
+        setGithubLiveInfo({
+          version: res.version,
+          currentVersion: res.currentVersion,
+          latestCommit: res.latestCommit,
+          message: res.message,
+        });
       } else if (res?.status === 'not-available') {
         setUpdateStatus('not-available');
         setGitUpdateInfo(null);
+        setGithubLiveInfo(null);
       } else if (!res?.success && res?.error) {
         setUpdateStatus('error');
         setUpdateError(res.error);
@@ -687,6 +717,42 @@ export const SettingsView: React.FC = () => {
                   >
                     Relaunch Now
                   </button>
+                </div>
+              )}
+
+              {/* GitHub Live Status (when checking remote without local git) */}
+              {updateStatus === 'github-live' && githubLiveInfo && (
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 text-xs text-emerald-400 font-semibold">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>
+                        Up to date with GitHub main (v{appVersionInfo.version})
+                      </span>
+                    </div>
+                    {githubLiveInfo.latestCommit?.htmlUrl && (
+                      <a
+                        href={githubLiveInfo.latestCommit.htmlUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2.5 py-1 bg-surface-100 hover:bg-surface-hover border border-surface-border text-slate-200 text-xs font-semibold rounded-lg flex items-center space-x-1 transition-colors"
+                      >
+                        <span>View Commit on GitHub</span>
+                        <ExternalLink className="w-3 h-3 text-slate-400" />
+                      </a>
+                    )}
+                  </div>
+                  {githubLiveInfo.latestCommit && (
+                    <div className="p-3 bg-surface-100/90 rounded-lg border border-surface-border space-y-1">
+                      <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Latest GitHub Commit:</div>
+                      <div className="text-xs text-slate-300 font-mono flex items-center space-x-1.5 truncate">
+                        <GitCommit className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                        <span className="font-bold text-purple-300">{githubLiveInfo.latestCommit.hash}</span>
+                        <span className="text-slate-400">—</span>
+                        <span className="truncate text-slate-200">{githubLiveInfo.latestCommit.message}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

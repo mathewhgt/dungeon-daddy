@@ -915,10 +915,78 @@ function setupAutoUpdater() {
     });
   });
 
-  autoUpdater.on('error', (err) => {
+  async function checkGitHubRemoteDirectly(owner = 'mathewhgt', repo = 'dungeon-daddy', branch = 'main') {
+    try {
+      // 1. Fetch package.json from raw.githubusercontent.com
+      let remoteVersion = null;
+      try {
+        const rawPkgUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/package.json?t=${Date.now()}`;
+        const pkgRes = await fetch(rawPkgUrl, {
+          headers: { 'User-Agent': 'Dungeon-Daddy-Updater' },
+        });
+        if (pkgRes.ok) {
+          const pkgData = await pkgRes.json();
+          remoteVersion = pkgData.version;
+        }
+      } catch (e) {
+        console.warn('Direct raw package.json check failed:', e?.message);
+      }
+
+      // 2. Fetch latest commit from GitHub public commits API
+      let latestCommit = null;
+      try {
+        const commitApiUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${branch}`;
+        const commitRes = await fetch(commitApiUrl, {
+          headers: {
+            'User-Agent': 'Dungeon-Daddy-Updater',
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        });
+        if (commitRes.ok) {
+          const commitData = await commitRes.json();
+          latestCommit = {
+            hash: (commitData.sha || '').substring(0, 7),
+            message: commitData.commit?.message?.split('\n')[0] || '',
+            date: commitData.commit?.author?.date || '',
+            author: commitData.commit?.author?.name || '',
+            htmlUrl: commitData.html_url || `https://github.com/${owner}/${repo}`,
+          };
+        }
+      } catch (e) {
+        console.warn('Direct GitHub commit check failed:', e?.message);
+      }
+
+      return {
+        success: Boolean(remoteVersion || latestCommit),
+        remoteVersion,
+        latestCommit,
+      };
+    } catch (err) {
+      console.error('Failed to query GitHub directly:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  autoUpdater.on('error', async (err) => {
+    const errorMsg = err ? err.message : '';
+    // If it's the missing production release 404 / latest-win.yml error, gracefully fallback
+    if (errorMsg.includes('production release') || errorMsg.includes('latest-win.yml') || errorMsg.includes('404')) {
+      const ghCheck = await checkGitHubRemoteDirectly('mathewhgt', 'dungeon-daddy', 'main');
+      if (ghCheck.success && ghCheck.latestCommit) {
+        broadcastUpdateStatus({
+          status: 'github-live',
+          version: ghCheck.remoteVersion || app.getVersion(),
+          currentVersion: app.getVersion(),
+          latestCommit: ghCheck.latestCommit,
+          message: `Connected to GitHub (origin/main). Latest commit: ${ghCheck.latestCommit.hash} - "${ghCheck.latestCommit.message}".`,
+        });
+        return;
+      }
+    }
+
     broadcastUpdateStatus({
       status: 'error',
-      error: err ? err.message : 'Unknown updater error',
+      error: errorMsg || 'Unknown updater error',
     });
   });
 
@@ -957,12 +1025,21 @@ function setupAutoUpdater() {
     const root = getProjectRoot();
     const hasGit = hasGitRepo();
     if (!hasGit) {
+      // Query GitHub API fallback for remote status
+      const ghCheck = await checkGitHubRemoteDirectly('mathewhgt', 'dungeon-daddy', 'main');
       return {
         hasGit: false,
         isPackaged: app.isPackaged,
         owner: 'mathewhgt',
         repo: 'dungeon-daddy',
+        branch: 'main',
         remoteUrl: 'https://github.com/mathewhgt/dungeon-daddy.git',
+        commit: ghCheck.latestCommit ? {
+          hash: ghCheck.latestCommit.hash,
+          subject: ghCheck.latestCommit.message,
+          time: new Date(ghCheck.latestCommit.date).toLocaleDateString(),
+          author: ghCheck.latestCommit.author,
+        } : undefined,
       };
     }
 
@@ -1054,15 +1131,37 @@ function setupAutoUpdater() {
       }
 
       // Mode B: Packaged binary on other devices without .git
+      // 1. Direct GitHub main branch & commit inspection
+      const ghCheck = await checkGitHubRemoteDirectly('mathewhgt', 'dungeon-daddy', 'main');
+
+      // 2. Optional: Try electron-updater (for published GitHub releases)
       if (app.isPackaged) {
-        if (customFeed) {
-          autoUpdater.setFeedURL(customFeed);
+        try {
+          if (customFeed) {
+            autoUpdater.setFeedURL(customFeed);
+          }
+          const checkResult = await autoUpdater.checkForUpdates();
+          if (checkResult?.updateInfo) {
+            return { success: true, updateInfo: checkResult.updateInfo };
+          }
+        } catch (releaseErr) {
+          console.warn('AutoUpdater release check fallback:', releaseErr?.message);
         }
-        const checkResult = await autoUpdater.checkForUpdates();
-        return { success: true, updateInfo: checkResult?.updateInfo };
       }
 
-      // Fallback if neither
+      if (ghCheck.success && ghCheck.latestCommit) {
+        const updateData = {
+          status: 'github-live',
+          version: ghCheck.remoteVersion || app.getVersion(),
+          currentVersion: app.getVersion(),
+          latestCommit: ghCheck.latestCommit,
+          message: `Connected to GitHub main branch. Latest commit: ${ghCheck.latestCommit.hash} - "${ghCheck.latestCommit.message}".`,
+        };
+        broadcastUpdateStatus(updateData);
+        return { success: true, ...updateData };
+      }
+
+      // Fallback
       broadcastUpdateStatus({
         status: 'not-available',
         version: app.getVersion(),
