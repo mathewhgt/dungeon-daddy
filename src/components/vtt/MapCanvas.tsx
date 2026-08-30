@@ -29,7 +29,9 @@ import {
   Flame,
   Key,
   ShieldAlert,
-  Eye
+  Eye,
+  Plus,
+  Minus
 } from 'lucide-react';
 
 import { SpellEntity } from '../../types/spell';
@@ -154,6 +156,16 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const isPanningRef = useRef(false);
   const panStartRef = useRef<Point2D>({ x: 0, y: 0 });
   const currentMouseWorldRef = useRef<Point2D>({ x: 0, y: 0 });
+
+  // Touch & Multi-Touch Gesture Tracking (Microsoft Surface & Touchscreens)
+  const activePointersRef = useRef<Map<number, { x: number; y: number; pointerType: string }>>(new Map());
+  const pinchInitialRef = useRef<{
+    dist: number;
+    screenCenter: Point2D;
+    worldCenter: Point2D;
+    viewport: { x: number; y: number; zoom: number };
+  } | null>(null);
+  const longPressTimerRef = useRef<any>(null);
 
   // Sync with controlled camera (for Player Display following GM)
   useEffect(() => {
@@ -324,7 +336,49 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     return pt;
   };
 
-  // Zoom with Mouse Wheel (Instant Smooth Ref + State Update)
+  // Smooth Zoom At Specific Screen Point (or Screen Center by default)
+  const zoomAtPoint = useCallback((targetZoom: number, screenPoint?: { x: number; y: number }) => {
+    const clampedZoom = Math.max(0.12, Math.min(8.0, targetZoom));
+    const curVp = viewportRef.current;
+    if (clampedZoom === curVp.zoom) return;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const ptX = screenPoint ? screenPoint.x : (rect ? rect.width / 2 : (containerRef.current?.clientWidth || 1200) / 2);
+    const ptY = screenPoint ? screenPoint.y : (rect ? rect.height / 2 : (containerRef.current?.clientHeight || 800) / 2);
+
+    const newX = ptX - (ptX - curVp.x) * (clampedZoom / curVp.zoom);
+    const newY = ptY - (ptY - curVp.y) * (clampedZoom / curVp.zoom);
+
+    viewportRef.current = { x: newX, y: newY, zoom: clampedZoom };
+    setViewport({ x: newX, y: newY, zoom: clampedZoom });
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    zoomAtPoint(viewportRef.current.zoom * 1.25);
+  }, [zoomAtPoint]);
+
+  const handleZoomOut = useCallback(() => {
+    zoomAtPoint(viewportRef.current.zoom / 1.25);
+  }, [zoomAtPoint]);
+
+  const handleResetView = useCallback(() => {
+    const container = containerRef.current;
+    const cw = container?.clientWidth || 1200;
+    const ch = container?.clientHeight || 800;
+    const mapW = mapImageRef.current?.naturalWidth || map.width || 2000;
+    const mapH = mapImageRef.current?.naturalHeight || map.height || 2000;
+
+    const zoomX = (cw * 0.9) / mapW;
+    const zoomY = (ch * 0.9) / mapH;
+    const fitZoom = Math.max(0.15, Math.min(1.5, Math.min(zoomX, zoomY)));
+    const centerX = (cw - mapW * fitZoom) / 2;
+    const centerY = (ch - mapH * fitZoom) / 2;
+
+    viewportRef.current = { x: centerX, y: centerY, zoom: fitZoom };
+    setViewport({ x: centerX, y: centerY, zoom: fitZoom });
+  }, [map.width, map.height]);
+
+  // Zoom with Mouse Wheel / Touchpad pinch
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
     const zoomFactor = 1.12;
@@ -433,14 +487,79 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     expCtx.restore();
   };
 
-  // Mouse Down handler
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Pointer Down handler (Supports Mouse, Surface Pen, and Touch / Multi-touch)
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
 
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch (_) {}
+
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY, pointerType: e.pointerType });
+
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+
+    // === Multi-Touch Pinch & Two-Finger Pan ===
+    if (activePointersRef.current.size === 2) {
+      // Abort any in-progress single-pointer actions cleanly so pinching doesn't drop tokens or walls
+      if (draggedTokenId || draggedTokenPosRef.current) {
+        setDraggedTokenId(null);
+        draggedTokenPosRef.current = null;
+      }
+      if (draggedDrawingId || draggedDrawingPosRef.current) {
+        setDraggedDrawingId(null);
+        draggedDrawingPosRef.current = null;
+      }
+      if (draggedPinId || draggedPinPosRef.current) {
+        setDraggedPinId(null);
+        draggedPinPosRef.current = null;
+        pinDragStartPosRef.current = null;
+      }
+      setIsPanning(false);
+      isPanningRef.current = false;
+      setIsBrushPainting(false);
+      setWallStartPoint(null);
+      setRulerStart(null);
+      setRulerCurrent(null);
+      setBoxStart(null);
+      setBoxCurrent(null);
+
+      const pts = Array.from(activePointersRef.current.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      const screenCenter = {
+        x: (p1.x + p2.x) / 2 - rect.left,
+        y: (p1.y + p2.y) / 2 - rect.top,
+      };
+      const currentVp = { ...viewportRef.current };
+      const worldCenter = {
+        x: (screenCenter.x - currentVp.x) / currentVp.zoom,
+        y: (screenCenter.y - currentVp.y) / currentVp.zoom,
+      };
+
+      pinchInitialRef.current = {
+        dist: Math.max(dist, 1),
+        screenCenter,
+        worldCenter,
+        viewport: currentVp,
+      };
+      return;
+    }
+
+    if (activePointersRef.current.size > 2) {
+      return;
+    }
+
+    // === Single Pointer Handling ===
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
     const worldPt = screenToWorld(screenX, screenY);
+    currentMouseWorldRef.current = worldPt;
 
     // 3x3 Box Calibration Drag
     if (isCalibratingBox) {
@@ -449,7 +568,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       return;
     }
 
-    // Right click handling
+    // Right click / Pen barrel button handling
     if (e.button === 2) {
       if (wallStartPoint) {
         setWallStartPoint(null);
@@ -480,11 +599,24 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     }
 
     if (e.button === 0) {
+      // Long-press detection for touch / pen on token
+      if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+        const tokenUnderPointer = findTokenAt(worldPt);
+        if (tokenUnderPointer) {
+          longPressTimerRef.current = setTimeout(() => {
+            onSelectToken?.(tokenUnderPointer);
+            onTokenContextMenu?.(tokenUnderPointer, { x: e.clientX, y: e.clientY });
+            setDraggedTokenId(null);
+            draggedTokenPosRef.current = null;
+          }, 550);
+        }
+      }
+
       // FOG OF WAR MANUAL BRUSH
       if (activeTool === 'fog-reveal' || activeTool === 'fog-hide') {
         setIsBrushPainting(true);
         paintFogBrush(worldPt, activeTool === 'fog-reveal');
-      isVisionDirtyRef.current = true;
+        isVisionDirtyRef.current = true;
         return;
       }
 
@@ -567,7 +699,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           return;
         }
 
-        // 4. Blank space pan
+        // 4. Blank space pan (supports single touch, pen, or mouse drag)
         onSelectToken?.(null);
         setSelectedDrawingId(null);
         setIsPanning(true);
@@ -643,10 +775,42 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     }
   };
 
-  // Mouse Move handler (60/120fps direct Ref updates with Zero Component Overhead)
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Pointer Move handler (Supports 60/120fps ref updates + multi-touch pinch & pan)
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
+
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY, pointerType: e.pointerType });
+
+    // Cancel long press if finger moved
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+
+    // === Multi-Touch Pinch-to-Zoom and Two-Finger Pan ===
+    if (activePointersRef.current.size === 2 && pinchInitialRef.current) {
+      const pts = Array.from(activePointersRef.current.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+      const curDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      const curScreenCenter = {
+        x: (p1.x + p2.x) / 2 - rect.left,
+        y: (p1.y + p2.y) / 2 - rect.top,
+      };
+
+      const init = pinchInitialRef.current;
+      if (init && init.dist > 0) {
+        const scale = curDist / init.dist;
+        const newZoom = Math.max(0.12, Math.min(8.0, init.viewport.zoom * scale));
+
+        const newX = curScreenCenter.x - init.worldCenter.x * newZoom;
+        const newY = curScreenCenter.y - init.worldCenter.y * newZoom;
+
+        viewportRef.current = { x: newX, y: newY, zoom: newZoom };
+      }
+      return;
+    }
 
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
@@ -706,76 +870,101 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     }
   };
 
-  // Mouse Up handler
-  const handleMouseUp = () => {
-    if (isPanningRef.current) {
-      setIsPanning(false);
-      isPanningRef.current = false;
+  // Pointer Up / Cancel handler
+  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch (_) {}
+
+    activePointersRef.current.delete(e.pointerId);
+
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+
+    // Sync viewport state on pinch end
+    if (activePointersRef.current.size < 2 && pinchInitialRef.current) {
+      pinchInitialRef.current = null;
       setViewport({ ...viewportRef.current });
     }
-    setIsBrushPainting(false);
 
-    if (isCalibratingBox && boxStart && boxCurrent) {
-      const boxW = Math.abs(boxCurrent.x - boxStart.x);
-      const boxH = Math.abs(boxCurrent.y - boxStart.y);
-      const minX = Math.min(boxStart.x, boxCurrent.x);
-      const minY = Math.min(boxStart.y, boxCurrent.y);
-
-      const calculatedCellSize = Math.max(10, Math.round(Math.max(boxW, boxH) / 3));
-      const ox = ((minX % calculatedCellSize) + calculatedCellSize) % calculatedCellSize;
-      const oy = ((minY % calculatedCellSize) + calculatedCellSize) % calculatedCellSize;
-
-      onCompleteBoxCalibration?.(calculatedCellSize, ox, oy);
-      setBoxStart(null);
-      setBoxCurrent(null);
-      showToast(`Grid Calibrated: ${calculatedCellSize}px cells`);
-      return;
+    // If 1 pointer remains after multi-touch, re-anchor pan to avoid jumping
+    if (activePointersRef.current.size === 1 && isPanningRef.current) {
+      const rem = Array.from(activePointersRef.current.values())[0];
+      panStartRef.current = { x: rem.x - viewportRef.current.x, y: rem.y - viewportRef.current.y };
     }
 
-    // Commit Token position on drag completion
-    if (draggedTokenPosRef.current) {
-      const pos = draggedTokenPosRef.current;
-      updateMapToken(map.id, pos.id, { x: pos.x, y: pos.y });
-      draggedTokenPosRef.current = null;
-    }
-
-    // Commit Placed Spell Drawing position on drag completion
-    if (draggedDrawingPosRef.current) {
-      const pos = draggedDrawingPosRef.current;
-      saveMap({
-        ...map,
-        drawings: map.drawings.map((d) => (d.id === pos.id ? { ...d, points: [{ x: pos.x, y: pos.y }] } : d)),
-      });
-      draggedDrawingPosRef.current = null;
-    }
-
-    // Handle DM Room Pin: Move or Open Edit Modal
-    if (draggedPinId && pinDragStartPosRef.current) {
-      const start = pinDragStartPosRef.current;
-      const currentPos = draggedPinPosRef.current;
-      const startPinX = start.x - pinDragOffsetRef.current.x;
-      const startPinY = start.y - pinDragOffsetRef.current.y;
-      const movedDist = currentPos ? Math.hypot(currentPos.x - startPinX, currentPos.y - startPinY) : 0;
-      const pin = map.pins.find((p) => p.id === draggedPinId);
-
-      if (movedDist < 6) {
-        // Small movement -> Click to Edit
-        if (pin) onOpenPinModal?.(pin);
-      } else if (currentPos && pin) {
-        // Dragged -> Move pin position
-        const updatedPins = map.pins.map((p) => (p.id === currentPos.id ? { ...p, x: Math.round(currentPos.x), y: Math.round(currentPos.y) } : p));
-        saveMap({ ...map, pins: updatedPins });
-        showToast(`Moved room pin: ${pin.title}`);
+    if (activePointersRef.current.size === 0) {
+      if (isPanningRef.current) {
+        setIsPanning(false);
+        isPanningRef.current = false;
+        setViewport({ ...viewportRef.current });
       }
-      draggedPinPosRef.current = null;
-      pinDragStartPosRef.current = null;
-      setDraggedPinId(null);
-    }
+      setIsBrushPainting(false);
 
-    setDraggedTokenId(null);
-    setDraggedDrawingId(null);
-    setRulerStart(null);
-    setRulerCurrent(null);
+      if (isCalibratingBox && boxStart && boxCurrent) {
+        const boxW = Math.abs(boxCurrent.x - boxStart.x);
+        const boxH = Math.abs(boxCurrent.y - boxStart.y);
+        const minX = Math.min(boxStart.x, boxCurrent.x);
+        const minY = Math.min(boxStart.y, boxCurrent.y);
+
+        const calculatedCellSize = Math.max(10, Math.round(Math.max(boxW, boxH) / 3));
+        const ox = ((minX % calculatedCellSize) + calculatedCellSize) % calculatedCellSize;
+        const oy = ((minY % calculatedCellSize) + calculatedCellSize) % calculatedCellSize;
+
+        onCompleteBoxCalibration?.(calculatedCellSize, ox, oy);
+        setBoxStart(null);
+        setBoxCurrent(null);
+        showToast(`Grid Calibrated: ${calculatedCellSize}px cells`);
+        return;
+      }
+
+      // Commit Token position on drag completion
+      if (draggedTokenPosRef.current) {
+        const pos = draggedTokenPosRef.current;
+        updateMapToken(map.id, pos.id, { x: pos.x, y: pos.y });
+        draggedTokenPosRef.current = null;
+      }
+
+      // Commit Placed Spell Drawing position on drag completion
+      if (draggedDrawingPosRef.current) {
+        const pos = draggedDrawingPosRef.current;
+        saveMap({
+          ...map,
+          drawings: map.drawings.map((d) => (d.id === pos.id ? { ...d, points: [{ x: pos.x, y: pos.y }] } : d)),
+        });
+        draggedDrawingPosRef.current = null;
+      }
+
+      // Handle DM Room Pin: Move or Open Edit Modal
+      if (draggedPinId && pinDragStartPosRef.current) {
+        const start = pinDragStartPosRef.current;
+        const currentPos = draggedPinPosRef.current;
+        const startPinX = start.x - pinDragOffsetRef.current.x;
+        const startPinY = start.y - pinDragOffsetRef.current.y;
+        const movedDist = currentPos ? Math.hypot(currentPos.x - startPinX, currentPos.y - startPinY) : 0;
+        const pin = map.pins.find((p) => p.id === draggedPinId);
+
+        if (movedDist < 6) {
+          // Small movement -> Click to Edit
+          if (pin) onOpenPinModal?.(pin);
+        } else if (currentPos && pin) {
+          // Dragged -> Move pin position
+          const updatedPins = map.pins.map((p) => (p.id === currentPos.id ? { ...p, x: Math.round(currentPos.x), y: Math.round(currentPos.y) } : p));
+          saveMap({ ...map, pins: updatedPins });
+          showToast(`Moved room pin: ${pin.title}`);
+        }
+        draggedPinPosRef.current = null;
+        pinDragStartPosRef.current = null;
+        setDraggedPinId(null);
+      }
+
+      setDraggedTokenId(null);
+      setDraggedDrawingId(null);
+      setRulerStart(null);
+      setRulerCurrent(null);
+    }
   };
 
   // Compute Active LOS Polygons
@@ -1599,22 +1788,65 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   };
 
   return (
-    <div ref={containerRef} className="w-full h-full relative overflow-hidden bg-[#090d12]">
+    <div ref={containerRef} className="w-full h-full relative overflow-hidden bg-[#090d12] select-none" style={{ touchAction: 'none' }}>
       <canvas
         ref={canvasRef}
         width={containerRef.current?.clientWidth || 1200}
         height={containerRef.current?.clientHeight || 800}
         onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         onContextMenu={(e) => e.preventDefault()}
-        className={`w-full h-full block ${
+        style={{ touchAction: 'none' }}
+        className={`w-full h-full block touch-none ${
           activeTool === 'select' ? 'cursor-default' : 
           activeTool.startsWith('fog-') ? 'cursor-crosshair' :
           activeTool === 'eraser' ? 'cursor-not-allowed' : 'cursor-crosshair'
         }`}
       />
+
+      {/* Floating Touch-Friendly Navigation & Zoom HUD (Surface & Touch Screen Controls) */}
+      <div className="absolute bottom-4 right-4 z-20 flex items-center bg-[#121720]/90 backdrop-blur-md border border-surface-border/80 rounded-2xl shadow-2xl p-1 space-x-1 select-none pointer-events-auto">
+        <button
+          type="button"
+          onClick={handleZoomOut}
+          className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-surface-hover active:bg-surface-200 transition-colors"
+          title="Zoom Out (-)"
+        >
+          <Minus className="w-4 h-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={handleResetView}
+          className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold text-amber-400 hover:bg-surface-hover active:bg-surface-200 transition-colors"
+          title="Fit / Reset Map View"
+        >
+          {Math.round(viewport.zoom * 100)}%
+        </button>
+
+        <button
+          type="button"
+          onClick={handleZoomIn}
+          className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-surface-hover active:bg-surface-200 transition-colors"
+          title="Zoom In (+)"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+
+        <div className="h-4 w-px bg-surface-border mx-0.5" />
+
+        <button
+          type="button"
+          onClick={handleResetView}
+          className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-surface-hover active:bg-surface-200 transition-colors"
+          title="Fit Map to Screen"
+        >
+          <Maximize2 className="w-4 h-4" />
+        </button>
+      </div>
 
       {/* Floating Placed Spell Template Inspector & Controller */}
       {selectedDrawing && (
