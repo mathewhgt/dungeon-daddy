@@ -1,0 +1,163 @@
+name,category,type,theme,value,weight,condition,rarity,description
+Filigreed Silver Censer,Temple Decor,area loot,Ancient Temple,25 gp,3 lbs.,Aged,Common,"An ornate silver incense burner suspended by three fine chains, etched with prayers to a forgotten deity."
+Carved Obsidian Prayer Beads,Temple Decor,area loot,Ancient Temple,15 gp,0.5 lb.,Pristine,Common,A strand of 108 polished black obsidian beads with a small silver crescent icon at the tassel.
+Vellum Holy Manuscript with Gold Leaf,Temple Decor,area loot,Ancient Temple,150 gp,4 lbs.,Fragile,Uncommon,"An ancient theological tome bound in cracked leather, its illuminated script decorated with real gold leaf."
+Ivory Icon of an Ancient Deity,Temple Decor,area loot,Ancient Temple,100 gp,1 lb.,Aged,Uncommon,A hand-carved walrus ivory figurine depicting a multi-armed sun god with gemstone-set eyes.
+Tarnished Bronze Offering Bowl,Temple Decor,area loot,Ancient Temple,10 gp,2 lbs.,Aged,Common,"A shallow bronze basin with stylized flame carvings around the rim, greened with age patination."
+Ceremonial Obsidian Dagger,Temple Relic,area loot,Ancient Temple,50 gp,1 lb.,Pristine,Common,"A razor-sharp ritual knife flaked from jet-black volcanic glass, with a handle wrapped in gilded wire."
+Altar Cloth Embroidered with Silver Thread,Temple Decor,area loot,Ancient Temple,35 gp,2 lbs.,Aged,Common,A heavy velvet runner dyed deep indigo and stitched with constellations in tarnished silver thread.
+Alabaster Statue Fragment of a Sun Deity,Temple Decor,area loot,Ancient Temple,75 gp,12 lbs.,Damaged,Common,"The finely sculpted bust and face of a radiant deity, broken at the shoulders from a larger monument."
+Gilded Incense Burner,Temple Decor,area loot,Ancient Temple,50 gp,4 lbs.,Aged,Common,"A brass censer coated in thin gold foil, pierced with lattice patterns depicting divine celestial rays."
+Holy Water Reliquary of Chased Silver,Temple Relic,area loot,Ancient Temple,120 gp,3 lbs.,Pristine,Uncommon,"A sealed cylinder of chased silver designed to hold consecrated water, topped with a crystal stopper."
+Chimes of Cast Bronze,Temple Decor,area loot,Ancient Temple,20 gp,5 lbs.,Aged,Common,A set of five tuned bronze wind chimes suspended from a carved mahogany frame.
+Stained Glass Rosette Panel Fragment,Temple Decor,area loot,Ancient Temple,45 gp,6 lbs.,Fragile,Common,A lead-framed segment of antique stained glass depicting a haloed saintly figure.
+Brazen Sacrificial Basin,Temple Decor,area loot,Ancient Temple,80 gp,25 lbs.,Aged,Common,"A heavy cast brass tripod basin adorned with ram head handles, discolored by ancient ritual fires."
+Marble Statuette of a Veiled Priestess,Temple Decor,area loot,Ancient Temple,200 gp,8 lbs.,Pristine,Uncommon,An exquisitely detailed statuette carved from white marble with delicate drapery work.
+Gold-Leaf Votive Plaque,Temple Decor,area loot,Ancient Temple,60 gp,1.5 lbs.,Aged,Common,"A bronze tablet covered in thin gold leaf, inscribed with a prayer of gratitude for a miraculous healing."
+Prayer Wheel of Engraved Brass,Temple Relic,area loot,Ancient Temple,30 gp,2 lbs.,Aged,Common,A hand-held spinning brass cylinder containing a scroll of repeating sacred mantras.
+Jade-Inlaid Ceremonial Gong,Temple Decor,area loot,Ancient Temple,350 gp,18 lbs.,Pristine,Uncommon,"A resonant bronze gong rimmed with small cabochons of green jade, suspended from an oak stand."
+Carved Bone Shrine Icon,Temple Relic,area loot,Ancient Temple,15 gp,0.5 lb.,Aged,Common,"A miniature pocket idol carved from a whale rib, representing a patron protector of travelers."
+Ornate Silver Candle Snuffer,Temple Decor,area loot,Ancient Temple,12 gp,1 lb.,Aged,Common,A long-handled silver snuffer ending in a hinged cone engraved with holy symbols.
+Serpent-Embossed Copper Candelabra,Temple Decor,area loot,Ancient Temple,40 gp,7 lbs.,Aged,Common,A three-armed standing copper candelabra styled like entwined vipers holding candle sockets in their jaws.
+Velvet Ritual Robes with Gold Trim,Temple Decor,area loot,Ancient Temple,50 gp,5 lbs.,Fragile,Common,"Ceremonial garments of deep crimson silk velvet with brocaded golden hems, worn by high priests."
+Stone Reliquary Box with Lapis Lazuli Inlays,Temple Relic,area loot,Ancient Temple,180 gp,5 lbs.,Pristine,Uncommon,"A small carved soapstone chest inlaid with deep blue lapis lazuli tiles, built to hold sacred relics."
+Carved Cedar Altar Screen Fragment,Temple Decor,area loot,Ancient Temple,25 gp,4 lbs.,Aged,Common,A panel of aromatic cedar intricately pierced with floral patterns and holy verses.
+Crystal Flask for Anointing Oils,Temple Relic,area loot,Ancient Temple,65 gp,1 lb.,Pristine,Common,"A faceted rock crystal vessel with a silver screw-cap, still faint with the fragrance of myrrh."
+Chased Electrum Holy Symbol,Temple Relic,area loot,Ancient Temple,90 gp,1 lb.,Pristine,Uncommon,"A medallion forged from electrum (a gold-silver alloy), detailed with high-relief divine iconography."
+Silver Ceremonial Bell,Temple Relic,area loot,Ancient Temple,25 gp,1.5 lbs.,Aged,Common,"A pure silver handbell used during sanctification rites, producing a long clear ring."
+Terracotta Votive Vessel,Temple Decor,area loot,Ancient Temple,8 gp,2 lbs.,Aged,Common,A painted earthenware urn used for burning aromatics during morning prayers.
+Bronze Altar Lantern with Mica Panes,Temple Decor,area loot,Ancient Temple,35 gp,4 lbs.,Aged,Common,A hanging lantern with sheets of heat-resistant translucent mica instead of glass.
+Embossed Brass Libation Bowl,Temple Decor,area loot,Ancient Temple,18 gp,2 lbs.,Aged,Common,A shallow pouring bowl with hammered motifs of grain sheaves and grapevines.
+Gilded Wood Shrine Canopy,Temple Decor,area loot,Ancient Temple,110 gp,15 lbs.,Fragile,Common,"An arching wooden archway coated in bright gold leaf, designed to frame an idol."
+Painted Ceramic Canopic Jar,Tomb Goods,area loot,Tomb / Crypt,15 gp,4 lbs.,Aged,Common,"A glazed pottery jar topped with the carved head of a jackal, used to store preserved organs."
+Hammered Copper Funerary Mask,Tomb Goods,area loot,Tomb / Crypt,50 gp,3 lbs.,Aged,Common,"A thin sheet of hammered copper shaped to fit over the face of a deceased noble, patinated green."
+Electrum Death Shroud Clip,Tomb Goods,area loot,Tomb / Crypt,35 gp,0.5 lb.,Pristine,Common,"A heavy electrum brooch carved like a scarab beetle, used to fasten burial linens."
+Glazed Faience Shabti Figurine,Tomb Goods,area loot,Tomb / Crypt,10 gp,1 lb.,Pristine,Common,A turquoise-blue glazed ceramic figurine intended to serve the deceased in the afterlife.
+Gilded Wooden Sarcophagus Panel,Tomb Goods,area loot,Tomb / Crypt,150 gp,10 lbs.,Fragile,Uncommon,A section of cedar sarcophagus painted with funerary glyphs and overlaid with leaf gold.
+Tarnished Bronze Urn with Engraved Runes,Tomb Goods,area loot,Tomb / Crypt,25 gp,5 lbs.,Aged,Common,A sealed funerary urn inscribed with wards against grave robbing and necromancy.
+Obsidian Eye Inlay from a Mummy Case,Tomb Goods,area loot,Tomb / Crypt,20 gp,0.2 lb.,Pristine,Common,A pair of polished obsidian and white shell eyes pulled from a sarcophagus lid.
+Ceremonial Burial Dagger with Ivory Hilt,Tomb Goods,area loot,Tomb / Crypt,75 gp,1 lb.,Pristine,Uncommon,"An unsharpened decorative blade buried alongside a warrior lord, featuring a carved elephant ivory hilt."
+Embroidered Linen Death Shroud,Tomb Goods,area loot,Tomb / Crypt,30 gp,3 lbs.,Fragile,Common,A long winding sheet of fine linen stitched with protective warding symbols in silver thread.
+Onyx Scarab Amulet,Tomb Goods,area loot,Tomb / Crypt,60 gp,0.5 lb.,Pristine,Common,A heavy black onyx beetle pendant placed over the heart of a mummified corpse.
+Mortuary Oil Lamp of Terracotta,Tomb Goods,area loot,Tomb / Crypt,5 gp,1 lb.,Aged,Common,"A clay lamp left at a tomb entrance, containing dried residue of scented ritual oil."
+Carved Bone Tomb Token,Tomb Goods,area loot,Tomb / Crypt,2 gp,0.1 lb.,Aged,Common,A flattened disc of cattle bone stamped with the seal of a royal necropolis.
+Silver-Plated Death Mask,Tomb Goods,area loot,Tomb / Crypt,120 gp,4 lbs.,Aged,Uncommon,A metallic portrait mask capturing the solemn visage of an ancient noble in silver finish.
+Lead Seals from an Ancient Tomb Door,Tomb Goods,area loot,Tomb / Crypt,1 gp,2 lbs.,Damaged,Common,Heavy stamped lead plugs that once sealed the entrance of a subterranean tomb chamber.
+Bronze Mortuary Bell,Tomb Goods,area loot,Tomb / Crypt,15 gp,2 lbs.,Aged,Common,A small handbell rung during burial processions to ward off evil spirits.
+Gold-Foil Burial Wreath,Tomb Goods,area loot,Tomb / Crypt,250 gp,1 lb.,Fragile,Uncommon,"A delicate crown of laurel leaves beaten from pure gold foil, worn by interred royalty."
+Inscribed Slate Grave Marker Fragment,Tomb Goods,area loot,Tomb / Crypt,5 gp,8 lbs.,Damaged,Common,A broken piece of black slate bearing an epitaph written in archaic Common.
+Alabaster Ointment Jar,Tomb Goods,area loot,Tomb / Crypt,40 gp,2 lbs.,Pristine,Common,"A translucent white alabaster jar with a carved stopper, used to hold embalming perfumes."
+Terracotta Funerary Servant Statue,Tomb Goods,area loot,Tomb / Crypt,15 gp,6 lbs.,Aged,Common,A painted clay figure of an archer or bearer created to accompany a lord in death.
+Carved Soapstone Effigy,Tomb Goods,area loot,Tomb / Crypt,25 gp,3 lbs.,Aged,Common,A smooth green soapstone carving of a sleeping guardian beast.
+Filigree Silver Ring on a Skeleton's Hand,Tomb Goods,area loot,Tomb / Crypt,30 gp,0.1 lb.,Aged,Common,"A delicate silver band inset with tiny garnets, recovered from an ancient burial pit."
+Gilded Bone Comb,Tomb Goods,area loot,Tomb / Crypt,45 gp,0.3 lb.,Fragile,Common,A fine-toothed toilet comb carved from ivory-toned bone with gold foil trim.
+Crypt Key of Cast Iron,Tomb Goods,area loot,Tomb / Crypt,5 gp,1 lb.,Rusted,Common,"A heavy, eight-inch iron key with a skull-shaped bow, fitting ancient tomb locks."
+Incised Steatite Seal Stone,Tomb Goods,area loot,Tomb / Crypt,20 gp,0.2 lb.,Pristine,Common,A cylindrical stamp stone used to mark royal grave goods with personal heraldry.
+Cedar Burial Box with Copper Strapping,Tomb Goods,area loot,Tomb / Crypt,35 gp,7 lbs.,Aged,Common,"A small chest for personal possessions, bound in verdigris-covered copper bands."
+Rusted Iron Longsword,Rusted Equipment,area loot,Tomb / Crypt,2 gp,3 lbs.,Rusted,Common,"A notched martial blade heavily pitted by centuries of damp tomb air, its leather grip decayed."
+Pitted Chainmail Shirt,Rusted Equipment,area loot,Dungeon / Cave,20 gp,25 lbs.,Rusted,Common,"A heavy shirt of interlocking iron rings stiffened with red rust, missing several links."
+Tarnished Bronze Shortsword,Rusted Equipment,area loot,Ancient Temple,10 gp,2 lbs.,Aged,Common,An ancient leaf-shaped bronze weapon covered in a thick patina of green verdigris.
+Weathered Oak Shield with Iron Boss,Worn Equipment,area loot,Dungeon / Cave,3 gp,6 lbs.,Damaged,Common,"A round wooden shield split across the face, held together by a rusted iron center dome."
+Cracked Steel Breastplate,Worn Equipment,area loot,Tomb / Crypt,100 gp,20 lbs.,Damaged,Common,"A once-fine steel cuirass bearing a deep gash from a warhammer strike, still retaining decorative inlay."
+Corroded Greatsword,Rusted Equipment,area loot,Tomb / Crypt,15 gp,6 lbs.,Rusted,Common,A massive two-handed blade fused into its iron-rimmed scabbard by thick rust.
+Dull Iron Dagger with Bone Hilt,Rusted Equipment,area loot,Dungeon / Cave,1 gp,1 lb.,Rusted,Common,"A simple sidearm with a yellowed bone handle and a pitted, edge-worn blade."
+Rusted Iron Morningstar,Rusted Equipment,area loot,Dungeon / Cave,5 gp,4 lbs.,Rusted,Common,"A spiked metal head attached to a splintered wooden shaft, dulled by rust and impact."
+Broken Spearhead of Damascened Steel,Rusted Equipment,area loot,Tomb / Crypt,4 gp,1.5 lbs.,Damaged,Common,The snapped blade of a partisan or spear showing folded steel patterns beneath surface corrosion.
+Bent Heavy Crossbow,Worn Equipment,area loot,Dungeon / Cave,12 gp,18 lbs.,Damaged,Common,"A siege crossbow with a rusted iron prod and rotted hemp bowstring, suitable for salvage."
+Pitted Iron Greataxe,Rusted Equipment,area loot,Dungeon / Cave,10 gp,7 lbs.,Rusted,Common,"A broad double-bitted axe head darkened by oxidation, mounted on a cracked ash handle."
+Tarnished Brass Helmet with Horsehair Crest,Worn Equipment,area loot,Ancient Temple,15 gp,3 lbs.,Aged,Common,"A high-crested guard helm with cheek guards, stained dark with age and dust."
+Splintered Lance with Faded Banner,Worn Equipment,area loot,Tomb / Crypt,2 gp,4 lbs.,Damaged,Common,"A knightly jousting weapon broken at mid-shaft, bearing a moth-eaten heraldic pennant."
+Rusted Scale Mail Vestment,Rusted Equipment,area loot,Dungeon / Cave,15 gp,30 lbs.,Rusted,Common,"Overlapping iron scales sewn onto rotting leather backing, flaking rust at the touch."
+Ancient Bronze Shield with Dragon Motif,Worn Equipment,area loot,Ancient Temple,45 gp,7 lbs.,Aged,Uncommon,A heavy bronze hoplite shield embossed with a relief of a coiled wyrm.
+Corroded Halberd Head,Rusted Equipment,area loot,Dungeon / Cave,4 gp,3 lbs.,Rusted,Common,The axe and spike assembly of a polearm severed from its wooden shaft.
+Worn Leather Armor with Brass Studs,Worn Equipment,area loot,Dungeon / Cave,5 gp,8 lbs.,Damaged,Common,Stiffened boiled leather chestpiece missing several brass rivets and torn at the buckles.
+Broken Scimitar with Intact Silver Pommel,Worn Equipment,area loot,Tomb / Crypt,25 gp,2 lbs.,Damaged,Common,"A curved blade snapped in half, featuring a silver pommel cap carved like a falcon head."
+Chipped War Pick,Rusted Equipment,area loot,Dungeon / Cave,3 gp,2 lbs.,Rusted,Common,"A heavy piercing hammer designed to puncture plate armor, now blunted and rusty."
+Antique Guard's Fluted Mace,Worn Equipment,area loot,Ancient Temple,8 gp,4 lbs.,Aged,Common,A six-flanged steel club with decorative grooves along the shaft.
+Cut Azurite,Gemstone,area loot,General,10 gp,0.01 lb.,Pristine,Common,"An opaque, deep mottling blue stone prized by jewelers for minor ornamental work."
+Polished Banded Agate,Gemstone,area loot,General,10 gp,0.01 lb.,Pristine,Common,"A translucent stone displaying concentric bands of brown, white, and red."
+Blue Quartz Cabochon,Gemstone,area loot,General,10 gp,0.01 lb.,Pristine,Common,A pale blue quartz crystal polished into a smooth rounded dome.
+Eye Agate,Gemstone,area loot,General,10 gp,0.01 lb.,Pristine,Common,An agate stone featuring ring-like markings resembling a watchful eye.
+Polished Hematite,Gemstone,area loot,General,10 gp,0.02 lb.,Pristine,Common,"A heavy, metallic dark-grey stone with a brilliant mirror-like luster."
+Lapis Lazuli Gem,Gemstone,area loot,General,10 gp,0.01 lb.,Pristine,Common,A rich azure stone speckled with flecks of golden pyrite.
+Malachite Cabochon,Gemstone,area loot,General,10 gp,0.01 lb.,Pristine,Common,An opaque stone with swirling bands of light and dark green.
+Moss Agate,Gemstone,area loot,General,10 gp,0.01 lb.,Pristine,Common,A translucent clear agate containing greenish moss-like mineral filaments.
+Polished Obsidian Gem,Gemstone,area loot,General,10 gp,0.01 lb.,Pristine,Common,A glassy black volcanic gem cut into a teardrop shape.
+Rhodochrosite Stone,Gemstone,area loot,General,10 gp,0.01 lb.,Pristine,Common,A rose-pink stone patterned with white zigzag bands.
+Tiger Eye Gem,Gemstone,area loot,General,10 gp,0.01 lb.,Pristine,Common,A golden-brown chatoyant gem that catches the light like a feline pupil.
+Turquoise Stone,Gemstone,area loot,General,10 gp,0.01 lb.,Pristine,Common,A light blue-green stone with fine black vein matrix.
+Faceted Bloodstone,Gemstone,area loot,General,50 gp,0.01 lb.,Pristine,Common,A dark green jasper spotted with blood-red flecks of iron oxide.
+Carnelian Gem,Gemstone,area loot,General,50 gp,0.01 lb.,Pristine,Common,A translucent reddish-orange chalcedony stone polished to a high sheen.
+Chrysoprase Stone,Gemstone,area loot,General,50 gp,0.01 lb.,Pristine,Common,An apple-green variety of chalcedony gemstone.
+Faceted Citrine,Gemstone,area loot,General,50 gp,0.01 lb.,Pristine,Common,A brilliant yellow quartz stone cut into a radiant brilliant pattern.
+Polished Jasper,Gemstone,area loot,General,50 gp,0.01 lb.,Pristine,Common,An opaque red and brown quartz mineral stone.
+Milky Moonstone,Gemstone,area loot,General,50 gp,0.01 lb.,Pristine,Common,A pearly white stone with a soft blue interior schiller sheen.
+Polished Black Onyx,Gemstone,area loot,General,50 gp,0.01 lb.,Pristine,Common,A smooth jet-black chalcedony stone popular in funerary jewelry.
+Faceted Amethyst,Gemstone,area loot,General,100 gp,0.01 lb.,Pristine,Uncommon,A deep purple transparent quartz gemstone cut with sharp facets.
+Golden Amber Nugget,Gemstone,area loot,General,100 gp,0.02 lb.,Pristine,Uncommon,A warm honey-colored piece of fossilized tree resin containing a prehistoric insect.
+Chrysoberyl Gem,Gemstone,area loot,General,100 gp,0.01 lb.,Pristine,Uncommon,A transparent yellowish-green stone with high refractive brilliance.
+Polished Red Coral,Gemstone,area loot,General,100 gp,0.02 lb.,Pristine,Uncommon,A branch of precious crimson sea coral smoothed for mounting.
+Cut Almandine Garnet,Gemstone,area loot,General,100 gp,0.01 lb.,Pristine,Uncommon,A dark violet-red stone cut into an oval brilliant shape.
+Carved Green Jade Cabochon,Gemstone,area loot,General,100 gp,0.02 lb.,Pristine,Uncommon,An imperial green jade stone smoothed into a dome.
+Faceted Jet Gem,Gemstone,area loot,General,100 gp,0.01 lb.,Pristine,Uncommon,A compact black lignite coal gem cut into a shiny multifaceted jewel.
+Lustrous Silver Pearl,Gemstone,area loot,General,100 gp,0.01 lb.,Pristine,Uncommon,A perfectly spherical natural ocean pearl with silver iridescent iridescence.
+Deep Red Spinel,Gemstone,area loot,General,100 gp,0.01 lb.,Pristine,Uncommon,A fiery magenta-red crystalline gemstone.
+Faceted Alexandrite,Gemstone,area loot,General,500 gp,0.01 lb.,Pristine,Rare,A rare gem that shifts color from emerald green in daylight to ruby red in candlelight.
+Aquamarine Gem,Gemstone,area loot,General,500 gp,0.01 lb.,Pristine,Rare,A clear pale blue-green beryl crystal of flawless transparency.
+Lustrous Black Pearl,Gemstone,area loot,General,500 gp,0.01 lb.,Pristine,Rare,A rare dark pearl harvested from deep ocean waters with peacock iridescence.
+Golden Topaz,Gemstone,area loot,General,500 gp,0.01 lb.,Pristine,Rare,A brilliant amber-gold gemstone cut into an emerald shape.
+Flawless Emerald,Gemstone,area loot,General,"1,000 gp",0.01 lb.,Pristine,Very Rare,A vivid green beryl gem cut into a step-cut rectangular facet.
+Deep Blue Sapphire,Gemstone,area loot,General,"1,000 gp",0.01 lb.,Pristine,Very Rare,A royal blue corundum jewel of immense clarity.
+Fiery Black Opal,Gemstone,area loot,General,"1,000 gp",0.01 lb.,Pristine,Very Rare,"A dark body opal displaying vivid flashes of neon green, blue, and red pinfire."
+Star Ruby,Gemstone,area loot,General,"1,000 gp",0.01 lb.,Pristine,Very Rare,A crimson corundum cabochon exhibiting a six-rayed star asterism when illuminated.
+Flawless Cut Diamond,Gemstone,area loot,General,"5,000 gp",0.01 lb.,Pristine,Legendary,"A large, brilliant-cut clear diamond of exceptional purity, suitable for powerful spell components."
+Deep Crimson Ruby,Gemstone,area loot,General,"5,000 gp",0.01 lb.,Pristine,Legendary,A pigeon-blood red corundum gem of radiant luster and historical value.
+Fiery Orange Jacinth,Gemstone,area loot,General,"5,000 gp",0.01 lb.,Pristine,Legendary,A rare reddish-orange zircon crystal cut into a brilliant cushion shape.
+Silver Chalice with Etched Vine Work,Art Object,area loot,General,25 gp,1.5 lbs.,Aged,Common,"A drinking vessel wrought of solid sterling silver, decorated with ivy motifs."
+Carved Bone Statuette of a Griffin,Art Object,area loot,General,25 gp,1 lb.,Pristine,Common,A detailed miniature figurine sculpted from polished ivory-like cattle bone.
+Small Gold Ring with Engraved Crest,Art Object,area loot,General,25 gp,0.1 lb.,Pristine,Common,A signet ring of 14k gold bearing a merchant guild seal.
+Cloth-of-Gold Vestments,Art Object,area loot,Ancient Temple,25 gp,4 lbs.,Fragile,Common,Ceremonial garments woven with fine golden threads.
+Black Velvet Mask with Thread-of-Silver,Art Object,area loot,General,25 gp,0.5 lb.,Pristine,Common,A masquerade eye-mask lined with silk and embroidered with silver whorls.
+Silver Ewer,Art Object,area loot,General,25 gp,3 lbs.,Aged,Common,A decorative silver pitcher used for serving wine during noble banquets.
+Gold Ring set with Small Rubies,Art Object,area loot,General,250 gp,0.1 lb.,Pristine,Uncommon,A broad gold band featuring three channel-set crimson ruby stones.
+Carved Ivory Statuette of an Elf Maiden,Art Object,area loot,General,250 gp,2 lbs.,Pristine,Uncommon,A masterwork carving in solid elephant ivory displaying flowing hair and robes.
+Large Gold Bracelet,Art Object,area loot,General,250 gp,0.5 lb.,Pristine,Uncommon,A heavy hinged cuff bracelet of solid yellow gold with braided wire detail.
+Silver Necklace with Gemstone Pendant,Art Object,area loot,General,250 gp,0.3 lb.,Pristine,Uncommon,A fine silver chain holding a drop-pendant cut from teardrop amethyst.
+Embossed Bronze Crown,Art Object,area loot,Tomb / Crypt,250 gp,2 lbs.,Aged,Uncommon,A ceremonial circlet wrought of heavy bronze and leafed in pale gold.
+Silk Robe with Gold Embroidery,Art Object,area loot,General,250 gp,3 lbs.,Pristine,Uncommon,A high-court silk garment decorated along the collar and sleeves with gold bullion thread.
+Silver Chalice set with Lapis Lazuli,Art Object,area loot,Ancient Temple,750 gp,2 lbs.,Pristine,Rare,A goblet of polished sterling silver adorned with four cabochon lapis lazuli stones around the bowl.
+Silk Tapestry depicting an Ancient Battle,Art Object,area loot,General,750 gp,15 lbs.,Aged,Rare,"A large wall hanging woven with silk, silver, and gold threads depicting a dragon slain by knights."
+Carved Jade Dragon Figurine,Art Object,area loot,General,750 gp,3 lbs.,Pristine,Rare,A translucent green jade carving of a coiled oriental serpent holding a pearl in its claws.
+Fine Gold Chain set with a Fire Opal,Art Object,area loot,General,"2,500 gp",0.3 lb.,Pristine,Very Rare,An exquisite necklace of woven gold mesh holding a blazing orange fire opal of flawless quality.
+Old Masterpiece Painting,Art Object,area loot,General,"2,500 gp",10 lbs.,Aged,Very Rare,An oil portrait on wood panel by a renowned Renaissance artist in a heavy gilt frame.
+Jeweled Gold Crown,Art Object,area loot,Tomb / Crypt,"7,500 gp",4 lbs.,Pristine,Legendary,"A majestic royal tiara of pure gold studded with rubies, sapphires, and large brilliant diamonds."
+Pegasus Feather Frozen in Amber,Trinket,area loot,General,10 gp,0.2 lb.,Pristine,Common,A translucent amber pebble containing a single iridescent white feather.
+Brass Pocket Compass (Points to Temple),Trinket,area loot,Ancient Temple,15 gp,0.5 lb.,Aged,Common,A handheld mariner's compass whose needle always aligns toward the nearest sacred altar.
+Glass Vial of Iridescent Sand,Trinket,area loot,General,5 gp,0.3 lb.,Pristine,Common,A sealed glass tube containing shimmering sand harvested from a fey crossing.
+Old Copper Coin from a Lost Realm,Trinket,area loot,Tomb / Crypt,2 gp,0.1 lb.,Aged,Common,A heavy square copper coin stamped with the profile of an ancient tyrant king.
+Clapperless Silver Bell,Trinket,area loot,Ancient Temple,25 gp,0.5 lb.,Pristine,Common,A small desk bell with no internal striker that still emits a soft clear tone when shaken.
+Wooden Puzzle Box smelling of Cedar,Trinket,area loot,General,8 gp,1 lb.,Pristine,Common,An interlocking wooden trick box requiring 12 distinct steps to open.
+Dried Toad in a Glass Orb,Trinket,area loot,Dungeon / Cave,3 gp,0.5 lb.,Pristine,Common,A mummified amphibian suspended inside a solid blown glass marble.
+Mechanical Brass Beetle,Trinket,area loot,General,30 gp,0.5 lb.,Aged,Uncommon,A wind-up clockwork insect whose metal legs click and flutter for 30 seconds when turned.
+Pouch of Etched Runestones,Trinket,area loot,Dungeon / Cave,4 gp,1 lb.,Aged,Common,A drawstring leather bag containing 5 river pebbles engraved with dwarven runes.
+Mummified Goblin Hand,Trinket,area loot,Dungeon / Cave,1 gp,0.2 lb.,Fragile,Common,"A shriveled desiccated hand tied with leather thongs, worn as a macabre luck charm."
+Bone Skeleton Key,Trinket,area loot,Tomb / Crypt,5 gp,0.1 lb.,Aged,Common,"A key filed from a human femur bone, fits no known lock."
+Tarnished Copper Locket with Pressed Flower,Trinket,area loot,Tomb / Crypt,3 gp,0.1 lb.,Aged,Common,An oval hinged locket containing a petrified black rose petal.
+Iron Wall Sconce with Melted Tallow Wax,Dungeon Decor,area loot,Dungeon / Cave,5 sp,3 lbs.,Rusted,Common,"A torch bracket forged from iron, covered in thick layers of yellowed candle wax."
+Tarnished Copper Lantern,Dungeon Decor,area loot,Dungeon / Cave,2 gp,2 lbs.,Aged,Common,A hooded oil lamp with brass fittings and scratched glass panes.
+Heavy Oak Chest with Iron Bands,Dungeon Decor,area loot,Dungeon / Cave,5 gp,25 lbs.,Aged,Common,"A sturdy storage trunk reinforced with riveted iron straps, key missing."
+Rotted Velvet Drapery with Tassels,Dungeon Decor,area loot,Dungeon / Cave,1 gp,8 lbs.,Damaged,Common,"A heavy curtain salvaged from a noble's chamber, discolored by dampness."
+Cast Iron Cauldron,Dungeon Decor,area loot,Dungeon / Cave,2 gp,15 lbs.,Aged,Common,"A three-legged cooking pot coated in soot, useful for alchemy or cooking."
+Intact Ceramic Wine Amphora,Dungeon Decor,area loot,Ancient Temple,1 gp,10 lbs.,Aged,Common,"A tall terracotta jug with twin handles, sealed with pitch."
+Brass Hourglass,Dungeon Decor,area loot,Ancient Temple,15 gp,1.5 lbs.,Pristine,Common,A 1-hour sand timer housed in a turned brass framework.
+Bundle of Pitch Torches (Set of 6),Scavenge,area loot,Dungeon / Cave,6 cp,6 lbs.,Pristine,Common,"Wooden stakes wrapped in resin-soaked cloth, ready for lighting."
+Coarse Hemp Rope (50 feet),Scavenge,area loot,Dungeon / Cave,1 gp,10 lbs.,Pristine,Common,Strong three-strand braided hemp cordage.
+Iron Pitons & Hammer Set,Scavenge,area loot,Dungeon / Cave,2 gp,5 lbs.,Aged,Common,Ten notched iron spikes and a heavy piton hammer in a canvas pouch.
+Carved Pewter Goblet,Dungeon Decor,area loot,Dungeon / Cave,8 sp,1 lb.,Aged,Common,A heavy pewter drinking cup engraved with hunting hounds.
+Leather Map Case with Brass Endcaps,Scavenge,area loot,Dungeon / Cave,1 gp,1 lb.,Aged,Common,A water-resistant cylinder designed to keep scrolls dry.
+Electrum Bullion Bar,Trade Goods,area loot,General,25 gp,1 lb.,Pristine,Common,A stamped ingot of gold-silver alloy marked with mint hallmarks.
+Chased Silver Ingot,Trade Goods,area loot,General,10 gp,2 lbs.,Pristine,Common,A commercial bar of refined silver trade metal.
+Bolt of Fine Silk Cloth,Trade Goods,area loot,General,10 gp,5 lbs.,Pristine,Common,A 10-yard roll of woven emerald-green mulberry silk fabric.
+Sack of Saffron Spices,Trade Goods,area loot,General,15 gp,1 lb.,Pristine,Uncommon,A sealed linen bag containing dried threads of rare crocus spice.
+Cake of Fragrant Frankincense,Trade Goods,area loot,Ancient Temple,5 gp,1 lb.,Pristine,Common,A block of hardened aromatic resin used for sacred incense.
+Jar of Ultramarine Lapis Pigment,Trade Goods,area loot,General,20 gp,1 lb.,Pristine,Uncommon,Finely ground crushed lapis lazuli powder used by master painters and scribes.

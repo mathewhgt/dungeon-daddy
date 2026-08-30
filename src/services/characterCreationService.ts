@@ -3,6 +3,7 @@ import { PlayerEntity, SpellSlotTracker } from '../types/player';
 import {
   AbilityKey,
   ClassDefinition2024,
+  ClassSubclass2024,
   BackgroundDefinition2024,
   SpeciesDefinition2024,
   OriginFeatDefinition2024,
@@ -11,6 +12,10 @@ import {
   ArmorItem2024,
   CharacterCreationState,
   DerivedCharacterStats,
+  CustomSubclassEntity,
+  CustomFeatEntity,
+  CustomBackgroundEntity,
+  CustomSpeciesEntity,
 } from '../types/characterCreator';
 
 // --- ALL 18 D&D 5E SKILLS & ASSOCIATED ABILITY ---
@@ -1272,11 +1277,92 @@ export function getInitialCharacterState(): CharacterCreationState {
   };
 }
 
+// --- DYNAMIC HOMEBREW MERGERS ---
+export interface CustomCreationOptions {
+  customSubclasses?: CustomSubclassEntity[];
+  customBackgrounds?: CustomBackgroundEntity[];
+  customSpecies?: CustomSpeciesEntity[];
+  customFeats?: CustomFeatEntity[];
+}
+
+export function getMergedClasses(customSubclasses: CustomSubclassEntity[] = []): ClassDefinition2024[] {
+  if (!customSubclasses || customSubclasses.length === 0) return CLASSES_2024;
+  return CLASSES_2024.map((cls) => {
+    const customForClass = customSubclasses.filter(
+      (s) => s.classId.toLowerCase() === cls.id.toLowerCase() || s.classId.toLowerCase() === cls.name.toLowerCase()
+    );
+    if (customForClass.length === 0) return cls;
+    const mappedCustomSubclasses: ClassSubclass2024[] = customForClass.map((cs) => ({
+      id: cs.id,
+      name: cs.name,
+      summary: cs.summary,
+      features: cs.features || [],
+      bonusSpells: cs.bonusSpells,
+      description: cs.description,
+      isCustom: true,
+      classId: cls.id,
+    }));
+    return {
+      ...cls,
+      subclasses: [...cls.subclasses, ...mappedCustomSubclasses],
+    };
+  });
+}
+
+export function getMergedBackgrounds(customBackgrounds: CustomBackgroundEntity[] = []): BackgroundDefinition2024[] {
+  const customList: BackgroundDefinition2024[] = (customBackgrounds || []).map((cb) => ({
+    id: cb.id,
+    name: cb.name,
+    allowedAbilities: cb.allowedAbilities || ['str', 'dex', 'con'],
+    originFeat: cb.originFeat || 'Alert',
+    skills: cb.skills || [],
+    tools: cb.tools || '',
+    bonusSpells: cb.bonusSpells,
+    equipmentPackage: cb.equipmentPackage || { description: 'Standard Kit', items: [], gold: 10 },
+    summary: cb.summary || '',
+    description: cb.description || cb.summary || '',
+  }));
+  return [...BACKGROUNDS_2024, ...customList];
+}
+
+export function getMergedSpecies(customSpecies: CustomSpeciesEntity[] = []): SpeciesDefinition2024[] {
+  const customList: SpeciesDefinition2024[] = (customSpecies || []).map((cs) => ({
+    id: cs.id,
+    name: cs.name,
+    size: cs.size || 'Medium',
+    speed: cs.speed || 30,
+    vision: cs.vision || 'Normal Vision',
+    traits: cs.traits || [],
+    bonusSpells: cs.bonusSpells,
+    lineages: cs.lineages,
+    summary: cs.summary || '',
+    description: cs.description || cs.summary || '',
+  }));
+  return [...SPECIES_2024, ...customList];
+}
+
+export function getMergedOriginFeats(customFeats: CustomFeatEntity[] = []): OriginFeatDefinition2024[] {
+  const customList: OriginFeatDefinition2024[] = (customFeats || []).map((cf) => ({
+    id: cf.id,
+    name: cf.name,
+    category: cf.category || 'Origin',
+    prerequisite: cf.prerequisite || 'None',
+    bonusSpells: cf.bonusSpells,
+    summary: cf.summary || '',
+    description: cf.description || cf.summary || '',
+  }));
+  return [...ORIGIN_FEATS_2024, ...customList];
+}
+
 // --- DERIVED STATS ENGINE ---
-export function calculateDerivedStats(state: CharacterCreationState): DerivedCharacterStats {
-  const cls = CLASSES_2024.find((c) => c.id === state.selectedClassId) || CLASSES_2024[0];
-  const bg = BACKGROUNDS_2024.find((b) => b.id === state.selectedBackgroundId) || BACKGROUNDS_2024[0];
-  const species = SPECIES_2024.find((s) => s.id === state.selectedSpeciesId) || SPECIES_2024[0];
+export function calculateDerivedStats(state: CharacterCreationState, options?: CustomCreationOptions): DerivedCharacterStats {
+  const mergedClasses = getMergedClasses(options?.customSubclasses);
+  const mergedBackgrounds = getMergedBackgrounds(options?.customBackgrounds);
+  const mergedSpecies = getMergedSpecies(options?.customSpecies);
+
+  const cls = mergedClasses.find((c) => c.id === state.selectedClassId) || mergedClasses[0];
+  const bg = mergedBackgrounds.find((b) => b.id === state.selectedBackgroundId) || mergedBackgrounds[0];
+  const species = mergedSpecies.find((s) => s.id === state.selectedSpeciesId) || mergedSpecies[0];
 
   const pb = 2; // Level 1 Proficiency Bonus
 
@@ -1300,8 +1386,9 @@ export function calculateDerivedStats(state: CharacterCreationState): DerivedCha
   };
 
   // Check Feats
-  const hasAlert = bg.originFeat.includes('Alert') || state.humanExtraFeat === 'Alert';
-  const hasTough = bg.originFeat.includes('Tough') || state.humanExtraFeat === 'Tough';
+  const isHuman = species.id === 'human';
+  const hasAlert = bg.originFeat.includes('Alert') || (isHuman && state.humanExtraFeat === 'Alert');
+  const hasTough = bg.originFeat.includes('Tough') || (isHuman && state.humanExtraFeat === 'Tough');
   const isDwarf = species.id === 'dwarf';
   const isWoodElf = state.selectedSpeciesId === 'elf' && state.selectedLineageId === 'wood-elf';
 
@@ -1336,9 +1423,9 @@ export function calculateDerivedStats(state: CharacterCreationState): DerivedCha
   // From Class
   state.classSkillChoices.forEach((s) => proficientSkillsSet.add(s));
   // From Human
-  if (state.humanExtraSkill) proficientSkillsSet.add(state.humanExtraSkill);
+  if (isHuman && state.humanExtraSkill) proficientSkillsSet.add(state.humanExtraSkill);
   // From Skilled feat
-  if (bg.originFeat.includes('Skilled') || state.humanExtraFeat === 'Skilled') {
+  if (bg.originFeat.includes('Skilled') || (isHuman && state.humanExtraFeat === 'Skilled')) {
     state.originFeatChoices?.skills?.forEach((s) => proficientSkillsSet.add(s));
   }
 
@@ -1480,19 +1567,25 @@ export function calculateDerivedStats(state: CharacterCreationState): DerivedCha
 export function createPlayerEntityFromState(
   state: CharacterCreationState,
   campaignId?: string,
-  existingId?: string
+  existingId?: string,
+  options?: CustomCreationOptions
 ): PlayerEntity {
-  const derived = calculateDerivedStats(state);
-  const cls = CLASSES_2024.find((c) => c.id === state.selectedClassId) || CLASSES_2024[0];
-  const bg = BACKGROUNDS_2024.find((b) => b.id === state.selectedBackgroundId) || BACKGROUNDS_2024[0];
-  const species = SPECIES_2024.find((s) => s.id === state.selectedSpeciesId) || SPECIES_2024[0];
+  const derived = calculateDerivedStats(state, options);
+  const mergedClasses = getMergedClasses(options?.customSubclasses);
+  const mergedBackgrounds = getMergedBackgrounds(options?.customBackgrounds);
+  const mergedSpecies = getMergedSpecies(options?.customSpecies);
+  const mergedOriginFeats = getMergedOriginFeats(options?.customFeats);
+
+  const cls = mergedClasses.find((c) => c.id === state.selectedClassId) || mergedClasses[0];
+  const bg = mergedBackgrounds.find((b) => b.id === state.selectedBackgroundId) || mergedBackgrounds[0];
+  const species = mergedSpecies.find((s) => s.id === state.selectedSpeciesId) || mergedSpecies[0];
 
   const now = new Date().toISOString();
   const id = existingId || `player-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
 
   // Collect feats
   const featsList: string[] = [bg.originFeat];
-  if (state.humanExtraFeat) featsList.push(state.humanExtraFeat);
+  if (species.id === 'human' && state.humanExtraFeat) featsList.push(state.humanExtraFeat);
   if (state.selectedOrderOrStyle && state.selectedOrderOrStyle.includes('Style')) {
     featsList.push(`Fighting Style: ${state.selectedOrderOrStyle}`);
   }
@@ -1555,7 +1648,15 @@ export function createPlayerEntityFromState(
       languages: state.selectedLanguages,
     },
     cantrips: state.selectedCantrips,
-    spellsKnown: state.selectedSpells,
+    spellsKnown: Array.from(new Set([
+      ...state.selectedSpells,
+      ...(cls.subclasses.find((s) => s.id === state.selectedSubclassId)?.bonusSpells || []),
+      ...(mergedOriginFeats.find((f) => bg.originFeat.includes(f.name))?.bonusSpells || []),
+      ...(species.id === 'human' && state.humanExtraFeat ? (mergedOriginFeats.find((f) => f.name === state.humanExtraFeat)?.bonusSpells || []) : []),
+      ...(bg.bonusSpells || []),
+      ...(species.bonusSpells || []),
+      ...(species.lineages?.find((l) => l.id === state.selectedLineageId)?.bonusSpells || []),
+    ])),
     alignment: state.alignment,
     backstory: state.backstory,
     personalityTraits: state.personalityTraits,

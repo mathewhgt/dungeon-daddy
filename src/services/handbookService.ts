@@ -13,7 +13,11 @@ import {
   SearchResultItem,
   CustomBookEntity,
   CustomChapterEntity,
-  HandbookTarget
+  HandbookTarget,
+  CustomSubclassEntity,
+  CustomSpeciesEntity,
+  CustomBackgroundEntity,
+  CustomFeatEntity,
 } from '../types/handbook';
 
 export * from '../types/handbook';
@@ -199,36 +203,79 @@ export function getHandbookChapterById(
   return all.find((c) => c.id === id);
 }
 
-export function getAllClasses(): CharacterClassRule[] {
-  return OFFICIAL_CLASSES;
+export function getAllClasses(customSubclasses: CustomSubclassEntity[] = []): CharacterClassRule[] {
+  if (!customSubclasses || customSubclasses.length === 0) return OFFICIAL_CLASSES;
+  return OFFICIAL_CLASSES.map((cls) => {
+    const customForClass = customSubclasses.filter((s) => s.classId.toLowerCase() === cls.id.toLowerCase() || s.classId.toLowerCase() === cls.name.toLowerCase());
+    if (customForClass.length === 0) return cls;
+    return {
+      ...cls,
+      subclasses: [...cls.subclasses, ...customForClass.map((s) => s.name)],
+    };
+  });
 }
 
-export function getClassById(id: string): CharacterClassRule | undefined {
-  return OFFICIAL_CLASSES.find((c) => c.id === id || c.name.toLowerCase() === id.toLowerCase());
+export function getClassById(id: string, customSubclasses: CustomSubclassEntity[] = []): CharacterClassRule | undefined {
+  const allClasses = getAllClasses(customSubclasses);
+  return allClasses.find((c) => c.id === id || c.name.toLowerCase() === id.toLowerCase());
 }
 
-export function getAllSpecies(): SpeciesRule[] {
-  return OFFICIAL_SPECIES;
+export function getAllSpecies(customSpecies: CustomSpeciesEntity[] = []): SpeciesRule[] {
+  const customList: SpeciesRule[] = (customSpecies || []).map((cs) => ({
+    id: cs.id,
+    name: cs.name,
+    size: cs.size,
+    speed: `${cs.speed} ft`,
+    traits: (cs.traits || []).map((t: any) => `${t.name}: ${t.description}`),
+    bonusSpells: cs.bonusSpells,
+    summary: cs.summary || cs.description || '',
+    chapterId: 'chapter-4-character-origins',
+    isCustom: true,
+  }));
+  return [...OFFICIAL_SPECIES, ...customList];
 }
 
-export function getSpeciesById(id: string): SpeciesRule | undefined {
-  return OFFICIAL_SPECIES.find((s) => s.id === id || s.name.toLowerCase() === id.toLowerCase());
+export function getSpeciesById(id: string, customSpecies: CustomSpeciesEntity[] = []): SpeciesRule | undefined {
+  const allSpecies = getAllSpecies(customSpecies);
+  return allSpecies.find((s) => s.id === id || s.name.toLowerCase() === id.toLowerCase());
 }
 
-export function getAllBackgrounds(): BackgroundRule[] {
-  return OFFICIAL_BACKGROUNDS;
+export function getAllBackgrounds(customBackgrounds: CustomBackgroundEntity[] = []): BackgroundRule[] {
+  const customList: BackgroundRule[] = (customBackgrounds || []).map((cb) => ({
+    id: cb.id,
+    name: cb.name,
+    abilityScores: (cb.allowedAbilities || []).map((a: string) => a.toUpperCase()).join(', '),
+    originFeat: cb.originFeat || '',
+    skills: (cb.skills || []).join(', '),
+    tools: cb.tools || '',
+    bonusSpells: cb.bonusSpells,
+    summary: cb.summary || cb.description || '',
+    isCustom: true,
+  }));
+  return [...OFFICIAL_BACKGROUNDS, ...customList];
 }
 
-export function getBackgroundById(id: string): BackgroundRule | undefined {
-  return OFFICIAL_BACKGROUNDS.find((b) => b.id === id || b.name.toLowerCase() === id.toLowerCase());
+export function getBackgroundById(id: string, customBackgrounds: CustomBackgroundEntity[] = []): BackgroundRule | undefined {
+  const allBackgrounds = getAllBackgrounds(customBackgrounds);
+  return allBackgrounds.find((b) => b.id === id || b.name.toLowerCase() === id.toLowerCase());
 }
 
-export function getAllFeats(): FeatRule[] {
-  return OFFICIAL_FEATS;
+export function getAllFeats(customFeats: CustomFeatEntity[] = []): FeatRule[] {
+  const customList: FeatRule[] = (customFeats || []).map((cf) => ({
+    id: cf.id,
+    name: cf.name,
+    category: cf.category,
+    prerequisite: cf.prerequisite || 'None',
+    bonusSpells: cf.bonusSpells,
+    summary: cf.summary || cf.description || '',
+    isCustom: true,
+  }));
+  return [...OFFICIAL_FEATS, ...customList];
 }
 
-export function getFeatById(id: string): FeatRule | undefined {
-  return OFFICIAL_FEATS.find((f) => f.id === id || f.name.toLowerCase() === id.toLowerCase());
+export function getFeatById(id: string, customFeats: CustomFeatEntity[] = []): FeatRule | undefined {
+  const allFeats = getAllFeats(customFeats);
+  return allFeats.find((f) => f.id === id || f.name.toLowerCase() === id.toLowerCase());
 }
 
 export function getAllConditions(): ConditionRule[] {
@@ -280,7 +327,11 @@ export function searchHandbook(
   bookId?: string, 
   customBooks: CustomBookEntity[] = [],
   overrides: Record<string, HandbookChapterOverride> = {},
-  customEntries: CustomChapterEntity[] = []
+  customEntries: CustomChapterEntity[] = [],
+  customSubclasses: CustomSubclassEntity[] = [],
+  customSpecies: CustomSpeciesEntity[] = [],
+  customBackgrounds: CustomBackgroundEntity[] = [],
+  customFeats: CustomFeatEntity[] = []
 ): SearchResultItem[] {
   if (!query || !query.trim()) return [];
 
@@ -288,7 +339,8 @@ export function searchHandbook(
   const results: SearchResultItem[] = [];
 
   // Search Classes & Subclasses
-  for (const cls of OFFICIAL_CLASSES) {
+  const mergedClasses = getAllClasses(customSubclasses);
+  for (const cls of mergedClasses) {
     const nameMatch = cls.name.toLowerCase().includes(q);
     const subMatch = cls.subclasses.some((s) => s.toLowerCase().includes(q));
     const summaryMatch = cls.summary.toLowerCase().includes(q);
@@ -307,7 +359,8 @@ export function searchHandbook(
   }
 
   // Search Species
-  for (const sp of OFFICIAL_SPECIES) {
+  const mergedSpecies = getAllSpecies(customSpecies);
+  for (const sp of mergedSpecies) {
     const nameMatch = sp.name.toLowerCase().includes(q);
     const traitMatch = sp.traits.some((t) => t.toLowerCase().includes(q));
     if (nameMatch || traitMatch) {
@@ -325,7 +378,8 @@ export function searchHandbook(
   }
 
   // Search Backgrounds
-  for (const bg of OFFICIAL_BACKGROUNDS) {
+  const mergedBackgrounds = getAllBackgrounds(customBackgrounds);
+  for (const bg of mergedBackgrounds) {
     const nameMatch = bg.name.toLowerCase().includes(q);
     const featMatch = bg.originFeat.toLowerCase().includes(q);
     if (nameMatch || featMatch) {
@@ -343,7 +397,8 @@ export function searchHandbook(
   }
 
   // Search Feats
-  for (const ft of OFFICIAL_FEATS) {
+  const mergedFeats = getAllFeats(customFeats);
+  for (const ft of mergedFeats) {
     const nameMatch = ft.name.toLowerCase().includes(q);
     const summaryMatch = ft.summary.toLowerCase().includes(q);
     if (nameMatch || summaryMatch) {

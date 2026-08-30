@@ -18,14 +18,15 @@ import {
   SpeciesDefinition2024,
 } from '../../../types/characterCreator';
 import {
-  BACKGROUNDS_2024,
-  SPECIES_2024,
-  ORIGIN_FEATS_2024,
+  getMergedBackgrounds,
+  getMergedSpecies,
+  getMergedOriginFeats,
   STANDARD_LANGUAGES,
   RARE_LANGUAGES,
   SKILL_DEFINITIONS,
 } from '../../../services/characterCreationService';
 import { RulesInspectionModal } from './RulesInspectionModal';
+import { useApp } from '../../../context/AppContext';
 
 interface StepOriginSelectorProps {
   state: CharacterCreationState;
@@ -33,11 +34,16 @@ interface StepOriginSelectorProps {
 }
 
 export const StepOriginSelector: React.FC<StepOriginSelectorProps> = ({ state, onChange }) => {
+  const { db } = useApp();
+  const backgrounds = React.useMemo(() => getMergedBackgrounds(db.customBackgrounds || []), [db.customBackgrounds]);
+  const species = React.useMemo(() => getMergedSpecies(db.customSpecies || []), [db.customSpecies]);
+  const originFeats = React.useMemo(() => getMergedOriginFeats(db.customFeats || []), [db.customFeats]);
+
   const [inspectingBackground, setInspectingBackground] = useState<BackgroundDefinition2024 | null>(null);
   const [inspectingSpecies, setInspectingSpecies] = useState<SpeciesDefinition2024 | null>(null);
 
-  const selectedBackground = BACKGROUNDS_2024.find((b) => b.id === state.selectedBackgroundId) || BACKGROUNDS_2024[0];
-  const selectedSpecies = SPECIES_2024.find((s) => s.id === state.selectedSpeciesId) || SPECIES_2024[0];
+  const selectedBackground = backgrounds.find((b) => b.id === state.selectedBackgroundId) || backgrounds[0];
+  const selectedSpecies = species.find((s) => s.id === state.selectedSpeciesId) || species[0];
 
   const handleSelectBackground = (bg: BackgroundDefinition2024) => {
     // Reset background bonus assignment to match the new background's 3 allowed abilities
@@ -57,12 +63,15 @@ export const StepOriginSelector: React.FC<StepOriginSelectorProps> = ({ state, o
     const defaultLineage = sp.lineages ? sp.lineages[0]?.id : undefined;
     const defaultAncestry = sp.ancestralChoices ? sp.ancestralChoices.options[0]?.id : undefined;
     const defaultSize = sp.size === 'Small' ? 'Small' : 'Medium';
+    const isHuman = sp.id === 'human';
 
     onChange({
       selectedSpeciesId: sp.id,
       selectedLineageId: defaultLineage,
       selectedAncestralChoiceId: defaultAncestry,
       selectedSize: defaultSize,
+      humanExtraFeat: isHuman ? (state.humanExtraFeat || 'Alert') : undefined,
+      humanExtraSkill: isHuman ? (state.humanExtraSkill || 'Intimidation') : undefined,
     });
   };
 
@@ -118,9 +127,9 @@ export const StepOriginSelector: React.FC<StepOriginSelectorProps> = ({ state, o
           </button>
         </div>
 
-        {/* 16 Background Grid */}
+        {/* Background Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {BACKGROUNDS_2024.map((bg) => {
+          {backgrounds.map((bg) => {
             const isSelected = bg.id === state.selectedBackgroundId;
             return (
               <div
@@ -134,7 +143,14 @@ export const StepOriginSelector: React.FC<StepOriginSelectorProps> = ({ state, o
               >
                 <div>
                   <div className="flex items-center justify-between">
-                    <h4 className="font-serif font-bold text-sm text-slate-100">{bg.name}</h4>
+                    <div className="flex items-center space-x-1.5">
+                      <h4 className="font-serif font-bold text-sm text-slate-100">{bg.name}</h4>
+                      {(bg as any).isCustom && (
+                        <span className="text-[9px] px-1 py-0.2 rounded bg-sky-950/80 border border-sky-800 text-sky-300 font-mono">
+                          Custom
+                        </span>
+                      )}
+                    </div>
                     {isSelected && <CheckCircle2 className="w-4 h-4 text-amber-400" />}
                   </div>
 
@@ -222,9 +238,9 @@ export const StepOriginSelector: React.FC<StepOriginSelectorProps> = ({ state, o
           </button>
         </div>
 
-        {/* 10 Species Grid */}
+        {/* Species Grid */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {SPECIES_2024.map((sp) => {
+          {species.map((sp) => {
             const isSelected = sp.id === state.selectedSpeciesId;
             return (
               <div
@@ -238,7 +254,14 @@ export const StepOriginSelector: React.FC<StepOriginSelectorProps> = ({ state, o
               >
                 <div>
                   <div className="flex items-center justify-between">
-                    <h4 className="font-serif font-bold text-sm text-slate-100">{sp.name}</h4>
+                    <div className="flex items-center space-x-1.5">
+                      <h4 className="font-serif font-bold text-sm text-slate-100">{sp.name}</h4>
+                      {(sp as any).isCustom && (
+                        <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-950/80 border border-emerald-800 text-emerald-300 font-mono">
+                          Custom
+                        </span>
+                      )}
+                    </div>
                     {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
                   </div>
 
@@ -389,7 +412,7 @@ export const StepOriginSelector: React.FC<StepOriginSelectorProps> = ({ state, o
                     onChange={(e) => onChange({ humanExtraFeat: e.target.value })}
                     className="w-full px-3 py-2 bg-surface-50 border border-surface-border rounded-lg text-xs text-slate-100 font-semibold focus:outline-none focus:border-amber-500"
                   >
-                    {ORIGIN_FEATS_2024.map((f) => (
+                    {originFeats.map((f) => (
                       <option key={f.id} value={f.name}>
                         {f.name} ({f.summary})
                       </option>

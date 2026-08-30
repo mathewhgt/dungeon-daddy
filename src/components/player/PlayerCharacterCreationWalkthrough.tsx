@@ -27,15 +27,16 @@ import {
   DerivedCharacterStats,
 } from '../../types/characterCreator';
 import {
-  CLASSES_2024,
-  BACKGROUNDS_2024,
-  SPECIES_2024,
+  getMergedClasses,
+  getMergedBackgrounds,
+  getMergedSpecies,
+  getMergedOriginFeats,
   WEAPON_MASTERIES_2024,
-  ORIGIN_FEATS_2024,
   calculateDerivedStats,
   formatModifier,
 } from '../../services/characterCreationService';
 import { TokenAvatar } from '../common/TokenAvatar';
+import { useApp } from '../../context/AppContext';
 
 interface PlayerCharacterCreationWalkthroughProps {
   step: number;
@@ -70,14 +71,44 @@ export const PlayerCharacterCreationWalkthrough: React.FC<PlayerCharacterCreatio
   step,
   characterState,
 }) => {
+  const { db } = useApp();
+  const customOpts = React.useMemo(() => ({
+    customSubclasses: db?.customSubclasses || [],
+    customBackgrounds: db?.customBackgrounds || [],
+    customSpecies: db?.customSpecies || [],
+    customFeats: db?.customFeats || [],
+  }), [db?.customSubclasses, db?.customBackgrounds, db?.customSpecies, db?.customFeats]);
+
+  const classes = React.useMemo(() => getMergedClasses(db?.customSubclasses || []), [db?.customSubclasses]);
+  const backgrounds = React.useMemo(() => getMergedBackgrounds(db?.customBackgrounds || []), [db?.customBackgrounds]);
+  const species = React.useMemo(() => getMergedSpecies(db?.customSpecies || []), [db?.customSpecies]);
+  const originFeats = React.useMemo(() => getMergedOriginFeats(db?.customFeats || []), [db?.customFeats]);
+
   const currentStepInfo = STEP_TITLES.find((s) => s.step === step) || STEP_TITLES[0];
 
-  const selectedClass = CLASSES_2024.find((c) => c.id === characterState.selectedClassId) || CLASSES_2024[0];
-  const selectedBackground = BACKGROUNDS_2024.find((b) => b.id === characterState.selectedBackgroundId) || BACKGROUNDS_2024[0];
-  const selectedSpecies = SPECIES_2024.find((s) => s.id === characterState.selectedSpeciesId) || SPECIES_2024[0];
+  const selectedClass = classes.find((c) => c.id === characterState.selectedClassId) || classes[0];
+  const selectedBackground = backgrounds.find((b) => b.id === characterState.selectedBackgroundId) || backgrounds[0];
+  const selectedSpecies = species.find((s) => s.id === characterState.selectedSpeciesId) || species[0];
 
-  const derived = calculateDerivedStats(characterState);
-  const ClassIcon = CLASS_ICONS[selectedClass.id] || Sword;
+  const grantedBonusSpells = React.useMemo(() => {
+    const spells: string[] = [];
+    const sub = selectedClass.subclasses.find((s) => s.id === characterState.selectedSubclassId);
+    if (sub?.bonusSpells) spells.push(...sub.bonusSpells);
+    const featObj = originFeats.find((f) => selectedBackground.originFeat.includes(f.name));
+    if (featObj?.bonusSpells) spells.push(...featObj.bonusSpells);
+    if (selectedSpecies.id === 'human' && characterState.humanExtraFeat) {
+      const extraFeat = originFeats.find((f) => f.name === characterState.humanExtraFeat);
+      if (extraFeat?.bonusSpells) spells.push(...extraFeat.bonusSpells);
+    }
+    if (selectedBackground.bonusSpells) spells.push(...selectedBackground.bonusSpells);
+    if (selectedSpecies.bonusSpells) spells.push(...selectedSpecies.bonusSpells);
+    const lin = selectedSpecies.lineages?.find((l) => l.id === characterState.selectedLineageId);
+    if (lin?.bonusSpells) spells.push(...lin.bonusSpells);
+    return Array.from(new Set(spells));
+  }, [selectedClass, selectedBackground, selectedSpecies, characterState.selectedSubclassId, characterState.humanExtraFeat, characterState.selectedLineageId, originFeats]);
+
+  const derived = calculateDerivedStats(characterState, customOpts);
+  const ClassIcon = CLASS_ICONS[selectedClass?.id] || Sword;
 
   return (
     <div className="w-full h-full bg-[#080c14] text-slate-100 flex flex-col justify-between p-8 md:p-12 overflow-y-auto animate-fadeIn select-none">
@@ -390,6 +421,32 @@ export const PlayerCharacterCreationWalkthrough: React.FC<PlayerCharacterCreatio
                         </span>
                       ))}
                     </div>
+                  </div>
+
+                  {grantedBonusSpells.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-surface-border/50">
+                      <strong className="text-xs text-purple-400 block font-serif">Granted / Subclass Spells:</strong>
+                      <div className="flex flex-wrap gap-2">
+                        {grantedBonusSpells.map((sp) => (
+                          <span key={sp} className="px-3 py-1 rounded-xl bg-purple-900/60 border border-purple-600 text-purple-100 text-xs font-bold font-mono">
+                            ✨ {sp}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : grantedBonusSpells.length > 0 ? (
+                <div className="space-y-3">
+                  <div className="text-xs text-purple-300">
+                    Granted Spells from Subclass / Feat / Species:
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {grantedBonusSpells.map((sp) => (
+                      <span key={sp} className="px-3 py-1 rounded-xl bg-purple-900/60 border border-purple-600 text-purple-100 text-xs font-bold font-mono">
+                        ✨ {sp}
+                      </span>
+                    ))}
                   </div>
                 </div>
               ) : (

@@ -20,8 +20,9 @@ import {
   CharacterCreationState,
   ClassDefinition2024,
 } from '../../../types/characterCreator';
-import { CLASSES_2024, SKILL_DEFINITIONS } from '../../../services/characterCreationService';
+import { getMergedClasses, SKILL_DEFINITIONS } from '../../../services/characterCreationService';
 import { RulesInspectionModal } from './RulesInspectionModal';
+import { useApp } from '../../../context/AppContext';
 
 const CLASS_ICONS: Record<string, React.ElementType> = {
   barbarian: Flame,
@@ -44,9 +45,11 @@ interface StepClassSelectorProps {
 }
 
 export const StepClassSelector: React.FC<StepClassSelectorProps> = ({ state, onChange }) => {
+  const { db } = useApp();
+  const classes = React.useMemo(() => getMergedClasses(db.customSubclasses || []), [db.customSubclasses]);
   const [inspectingClass, setInspectingClass] = useState<ClassDefinition2024 | null>(null);
 
-  const selectedClass = CLASSES_2024.find((c) => c.id === state.selectedClassId) || CLASSES_2024[0];
+  const selectedClass = classes.find((c) => c.id === state.selectedClassId) || classes[0];
 
   const handleSelectClass = (cls: ClassDefinition2024) => {
     // Determine default skills
@@ -108,7 +111,7 @@ export const StepClassSelector: React.FC<StepClassSelectorProps> = ({ state, onC
 
       {/* 12-Class Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {CLASSES_2024.map((cls) => {
+        {classes.map((cls) => {
           const Icon = CLASS_ICONS[cls.id] || Sword;
           const isSelected = cls.id === state.selectedClassId;
 
@@ -125,31 +128,35 @@ export const StepClassSelector: React.FC<StepClassSelectorProps> = ({ state, onC
               <div>
                 <div className="flex items-start justify-between">
                   <div
-                    className="p-2 rounded-lg"
+                    className="w-10 h-10 rounded-lg flex items-center justify-center border shadow-inner"
                     style={{
                       backgroundColor: `${cls.color}20`,
+                      borderColor: `${cls.color}50`,
                       color: cls.color,
                     }}
                   >
                     <Icon className="w-5 h-5" />
                   </div>
-
-                  <div className="flex items-center space-x-1.5">
-                    <span className="px-1.5 py-0.5 rounded bg-surface-50 border border-surface-border text-[10px] font-mono text-slate-300">
-                      d{cls.hitDie} HP
-                    </span>
-                    {isSelected && (
-                      <CheckCircle2 className="w-4 h-4 text-amber-400 animate-scaleUp" />
-                    )}
+                  <div className="flex items-center space-x-1">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setInspectingClass(cls);
+                      }}
+                      className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-surface-50 transition-colors"
+                      title="Inspect Class Details"
+                    >
+                      <Info className="w-4 h-4" />
+                    </button>
+                    {isSelected && <CheckCircle2 className="w-5 h-5 text-amber-400" />}
                   </div>
                 </div>
 
-                <div className="mt-2.5">
-                  <h3 className="font-serif font-bold text-slate-100 text-sm">{cls.name}</h3>
-                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">{cls.primaryAbility}</p>
-                </div>
-
-                <p className="text-[11px] text-slate-400 line-clamp-2 mt-2 leading-relaxed">
+                <h3 className="font-serif font-bold text-sm text-slate-100 mt-2.5">
+                  {cls.name}
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-tight">
                   {cls.description}
                 </p>
               </div>
@@ -327,7 +334,7 @@ export const StepClassSelector: React.FC<StepClassSelectorProps> = ({ state, onC
               <h4 className="font-serif font-bold text-sm text-slate-100 flex items-center space-x-2">
                 <span>Subclass (Unlocked at Level 3)</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-50 text-slate-400 border border-surface-border">
-                  4 Subclasses
+                  {selectedClass.subclasses.length} Subclasses
                 </span>
               </h4>
               <p className="text-xs text-slate-400">
@@ -351,7 +358,14 @@ export const StepClassSelector: React.FC<StepClassSelectorProps> = ({ state, onC
                 >
                   <div>
                     <div className="flex items-center justify-between">
-                      <h5 className="font-serif font-bold text-xs text-slate-100">{sub.name}</h5>
+                      <div className="flex items-center space-x-1.5">
+                        <h5 className="font-serif font-bold text-xs text-slate-100">{sub.name}</h5>
+                        {sub.isCustom && (
+                          <span className="text-[9px] px-1 py-0.2 rounded bg-purple-950/80 border border-purple-800 text-purple-300 font-mono">
+                            Custom
+                          </span>
+                        )}
+                      </div>
                       {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />}
                     </div>
                     <p className="text-[11px] text-slate-400 mt-1 line-clamp-3">{sub.summary}</p>

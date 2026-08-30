@@ -25,9 +25,10 @@ import {
   DerivedCharacterStats,
 } from '../../../types/characterCreator';
 import {
-  CLASSES_2024,
-  BACKGROUNDS_2024,
-  SPECIES_2024,
+  getMergedClasses,
+  getMergedBackgrounds,
+  getMergedSpecies,
+  getMergedOriginFeats,
   createPlayerEntityFromState,
   calculateDerivedStats,
   formatModifier,
@@ -38,22 +39,55 @@ import { TokenAvatar } from '../../common/TokenAvatar';
 interface StepReviewAndSaveProps {
   state: CharacterCreationState;
   onSavedHero?: (heroId: string) => void;
+  onNavigateTab?: (tabId: string) => void;
 }
 
-export const StepReviewAndSave: React.FC<StepReviewAndSaveProps> = ({ state, onSavedHero }) => {
-  const { savePlayer, activeCampaignId, setActiveTab, showToast } = useApp();
-
-  const [isCopied, setIsCopied] = useState(false);
+export const StepReviewAndSave: React.FC<StepReviewAndSaveProps> = ({
+  state,
+  onSavedHero,
+  onNavigateTab,
+}) => {
+  const { db, savePlayer, showToast, activeCampaignId, setActiveTab } = useApp();
   const [isSaved, setIsSaved] = useState(false);
   const [savedHeroId, setSavedHeroId] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
 
-  const derived = calculateDerivedStats(state);
-  const selectedClass = CLASSES_2024.find((c) => c.id === state.selectedClassId) || CLASSES_2024[0];
-  const selectedBackground = BACKGROUNDS_2024.find((b) => b.id === state.selectedBackgroundId) || BACKGROUNDS_2024[0];
-  const selectedSpecies = SPECIES_2024.find((s) => s.id === state.selectedSpeciesId) || SPECIES_2024[0];
+  const customOpts = React.useMemo(() => ({
+    customSubclasses: db.customSubclasses || [],
+    customBackgrounds: db.customBackgrounds || [],
+    customSpecies: db.customSpecies || [],
+    customFeats: db.customFeats || [],
+  }), [db.customSubclasses, db.customBackgrounds, db.customSpecies, db.customFeats]);
+
+  const classes = React.useMemo(() => getMergedClasses(db.customSubclasses || []), [db.customSubclasses]);
+  const backgrounds = React.useMemo(() => getMergedBackgrounds(db.customBackgrounds || []), [db.customBackgrounds]);
+  const species = React.useMemo(() => getMergedSpecies(db.customSpecies || []), [db.customSpecies]);
+  const originFeats = React.useMemo(() => getMergedOriginFeats(db.customFeats || []), [db.customFeats]);
+
+  const derived = calculateDerivedStats(state, customOpts);
+  const selectedClass = classes.find((c) => c.id === state.selectedClassId) || classes[0];
+  const selectedBackground = backgrounds.find((b) => b.id === state.selectedBackgroundId) || backgrounds[0];
+  const selectedSpecies = species.find((s) => s.id === state.selectedSpeciesId) || species[0];
+
+  const grantedBonusSpells = React.useMemo(() => {
+    const spells: string[] = [];
+    const sub = selectedClass.subclasses.find((s) => s.id === state.selectedSubclassId);
+    if (sub?.bonusSpells) spells.push(...sub.bonusSpells);
+    const featObj = originFeats.find((f) => selectedBackground.originFeat.includes(f.name));
+    if (featObj?.bonusSpells) spells.push(...featObj.bonusSpells);
+    if (selectedSpecies.id === 'human' && state.humanExtraFeat) {
+      const extraFeat = originFeats.find((f) => f.name === state.humanExtraFeat);
+      if (extraFeat?.bonusSpells) spells.push(...extraFeat.bonusSpells);
+    }
+    if (selectedBackground.bonusSpells) spells.push(...selectedBackground.bonusSpells);
+    if (selectedSpecies.bonusSpells) spells.push(...selectedSpecies.bonusSpells);
+    const lin = selectedSpecies.lineages?.find((l) => l.id === state.selectedLineageId);
+    if (lin?.bonusSpells) spells.push(...lin.bonusSpells);
+    return Array.from(new Set(spells));
+  }, [selectedClass, selectedBackground, selectedSpecies, state.selectedSubclassId, state.humanExtraFeat, state.selectedLineageId, originFeats]);
 
   const handleSaveToParty = () => {
-    const playerEntity = createPlayerEntityFromState(state, activeCampaignId || undefined, savedHeroId || undefined);
+    const playerEntity = createPlayerEntityFromState(state, activeCampaignId || undefined, savedHeroId || undefined, customOpts);
     savePlayer(playerEntity);
     setIsSaved(true);
     setSavedHeroId(playerEntity.id);
@@ -62,7 +96,7 @@ export const StepReviewAndSave: React.FC<StepReviewAndSaveProps> = ({ state, onS
   };
 
   const handleExportJson = () => {
-    const playerEntity = createPlayerEntityFromState(state, activeCampaignId || undefined, savedHeroId || undefined);
+    const playerEntity = createPlayerEntityFromState(state, activeCampaignId || undefined, savedHeroId || undefined, customOpts);
     const blob = new Blob([JSON.stringify(playerEntity, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -366,29 +400,31 @@ export const StepReviewAndSave: React.FC<StepReviewAndSaveProps> = ({ state, onS
             </div>
 
             {/* Spellcasting (if applicable) */}
-            {derived.spellSaveDc && (
+            {(derived.spellSaveDc || grantedBonusSpells.length > 0) && (
               <div className="p-4 rounded-xl bg-surface-50 border border-surface-border space-y-2">
                 <h4 className="font-serif font-bold text-sm text-slate-100 flex items-center space-x-2">
                   <Sparkles className="w-4 h-4 text-purple-400" />
-                  <span>Spellcasting Metrics</span>
+                  <span>Spellcasting & Granted Spells</span>
                 </h4>
 
-                <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                  <div className="p-2 rounded bg-surface-100 border border-surface-border font-mono">
-                    <div className="text-[10px] text-slate-400">Save DC</div>
-                    <div className="text-sm font-bold text-purple-300">{derived.spellSaveDc}</div>
-                  </div>
-                  <div className="p-2 rounded bg-surface-100 border border-surface-border font-mono">
-                    <div className="text-[10px] text-slate-400">Attack Bonus</div>
-                    <div className="text-sm font-bold text-purple-300">{formatModifier(derived.spellAttackBonus || 0)}</div>
-                  </div>
-                  <div className="p-2 rounded bg-surface-100 border border-surface-border font-mono">
-                    <div className="text-[10px] text-slate-400">L1 Slots</div>
-                    <div className="text-sm font-bold text-purple-300">
-                      {derived.spellSlots[0]?.total || 0} Slots
+                {derived.spellSaveDc && (
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="p-2 rounded bg-surface-100 border border-surface-border font-mono">
+                      <div className="text-[10px] text-slate-400">Save DC</div>
+                      <div className="text-sm font-bold text-purple-300">{derived.spellSaveDc}</div>
+                    </div>
+                    <div className="p-2 rounded bg-surface-100 border border-surface-border font-mono">
+                      <div className="text-[10px] text-slate-400">Attack Bonus</div>
+                      <div className="text-sm font-bold text-purple-300">{formatModifier(derived.spellAttackBonus || 0)}</div>
+                    </div>
+                    <div className="p-2 rounded bg-surface-100 border border-surface-border font-mono">
+                      <div className="text-[10px] text-slate-400">L1 Slots</div>
+                      <div className="text-sm font-bold text-purple-300">
+                        {derived.spellSlots[0]?.total || 0} Slots
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {state.selectedCantrips.length > 0 && (
                   <div className="text-xs text-slate-300 pt-1">
@@ -399,6 +435,17 @@ export const StepReviewAndSave: React.FC<StepReviewAndSaveProps> = ({ state, onS
                 {state.selectedSpells.length > 0 && (
                   <div className="text-xs text-slate-300">
                     <strong>Prepared Spells:</strong> {state.selectedSpells.join(', ')}
+                  </div>
+                )}
+
+                {grantedBonusSpells.length > 0 && (
+                  <div className="text-xs text-purple-300 pt-1 border-t border-surface-border/50 flex items-center space-x-1.5 flex-wrap gap-1">
+                    <strong className="text-purple-400 font-serif">Granted / Subclass Spells:</strong>
+                    {grantedBonusSpells.map((sp) => (
+                      <span key={sp} className="px-1.5 py-0.5 rounded bg-purple-950/80 border border-purple-800 text-purple-200 text-[10px] font-mono">
+                        ✨ {sp}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
@@ -417,7 +464,9 @@ export const StepReviewAndSave: React.FC<StepReviewAndSaveProps> = ({ state, onS
             <div className="space-y-1">
               <strong className="text-slate-300 block">Origin Feats:</strong>
               <p className="text-slate-400">{selectedBackground.originFeat}</p>
-              {state.humanExtraFeat && <p className="text-slate-400">Human: {state.humanExtraFeat}</p>}
+              {state.selectedSpeciesId === 'human' && state.humanExtraFeat && (
+                <p className="text-slate-400">Human: {state.humanExtraFeat}</p>
+              )}
             </div>
 
             <div className="space-y-1">

@@ -1,3 +1,5 @@
+export * from './characterCreator';
+
 export interface HandbookBook {
   id: string;
   title: string;
@@ -90,6 +92,7 @@ export interface SpeciesRule {
   size: string;
   speed: string;
   traits: string[];
+  bonusSpells?: string[];
   summary: string;
   chapterId: string;
   isCustom?: boolean;
@@ -102,6 +105,7 @@ export interface BackgroundRule {
   originFeat: string;
   skills: string;
   tools: string;
+  bonusSpells?: string[];
   summary: string;
   isCustom?: boolean;
 }
@@ -111,6 +115,7 @@ export interface FeatRule {
   name: string;
   category: 'Origin' | 'General' | 'Fighting Style' | 'Epic Boon';
   prerequisite: string;
+  bonusSpells?: string[];
   summary: string;
   isCustom?: boolean;
 }

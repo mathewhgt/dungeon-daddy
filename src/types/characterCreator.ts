@@ -10,6 +10,75 @@ export interface ClassSubclass2024 {
   name: string;
   summary: string;
   features: string[];
+  bonusSpells?: string[];
+  classId?: string;
+  description?: string;
+  isCustom?: boolean;
+}
+
+export interface CustomSubclassEntity {
+  id: string;
+  classId: string; // e.g. 'barbarian', 'cleric', etc.
+  name: string;
+  summary: string;
+  features: string[];
+  bonusSpells?: string[];
+  description?: string;
+  isCustom: true;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomFeatEntity {
+  id: string;
+  name: string;
+  category: 'Origin' | 'General' | 'Fighting Style' | 'Epic Boon';
+  prerequisite: string;
+  summary: string;
+  description: string;
+  bonusSpells?: string[];
+  isCustom: true;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomBackgroundEntity {
+  id: string;
+  name: string;
+  allowedAbilities: AbilityKey[];
+  originFeat: string;
+  skills: string[];
+  tools: string;
+  bonusSpells?: string[];
+  equipmentPackage: {
+    description: string;
+    items: string[];
+    gold: number;
+  };
+  summary: string;
+  description: string;
+  isCustom: true;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomSpeciesEntity {
+  id: string;
+  name: string;
+  size: 'Medium' | 'Small' | 'Medium or Small';
+  speed: number;
+  vision: string;
+  traits: {
+    name: string;
+    description: string;
+  }[];
+  bonusSpells?: string[];
+  lineages?: SpeciesLineage2024[];
+  summary: string;
+  description: string;
+  isCustom: true;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ClassDefinition2024 {
@@ -56,6 +125,7 @@ export interface BackgroundDefinition2024 {
   skills: string[];
   tools: string;
   toolChoices?: string[];
+  bonusSpells?: string[];
   equipmentPackage: {
     description: string;
     items: string[];
@@ -83,6 +153,7 @@ export interface SpeciesDefinition2024 {
     name: string;
     description: string;
   }[];
+  bonusSpells?: string[];
   lineages?: SpeciesLineage2024[];
   ancestralChoices?: {
     title: string;
@@ -102,6 +173,7 @@ export interface OriginFeatDefinition2024 {
   prerequisite: string;
   summary: string;
   description: string;
+  bonusSpells?: string[];
   requiresSpellChoice?: {
     schools: ('Cleric' | 'Druid' | 'Wizard')[];
     cantripsCount: number;

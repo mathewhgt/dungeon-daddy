@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import { PlayerDisplayView } from './components/player/PlayerDisplayView';
 import { AppProvider } from './context/AppContext';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import './index.css';
 
 const isPlayerView = 
@@ -12,8 +13,10 @@ const isPlayerView =
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <AppProvider>
-      {isPlayerView ? <PlayerDisplayView /> : <App />}
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        {isPlayerView ? <PlayerDisplayView /> : <App />}
+      </AppProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

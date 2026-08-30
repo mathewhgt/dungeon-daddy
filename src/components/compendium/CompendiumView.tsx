@@ -17,13 +17,18 @@ import {
   Users,
   MapPin,
   Compass,
-  History
+  History,
+  Edit,
+  Copy,
+  X
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { MonsterStatBlock } from './MonsterStatBlock';
 import { SpellCard } from './SpellCard';
 import { ItemCard } from './ItemCard';
 import { EntityEditorModal } from './EntityEditorModal';
+import { RollTableEditorModal } from './RollTableEditorModal';
+import { RollTableEntity } from '../../types/rollTable';
 import { generateCsvTemplate, exportEntitiesToCsv } from '../../services/templateEngine';
 import { EntityType } from '../../types/entity';
 import { fuzzyMatch, fuzzyMatchMultiple } from '../../utils/searchUtils';
@@ -67,6 +72,18 @@ export const CompendiumView: React.FC = () => {
   const [levelFilter, setLevelFilter] = useState<string>('all');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingEntity, setEditingEntity] = useState<any>(null);
+
+  // Roll Table specific state
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
+  const [isTableEditorOpen, setIsTableEditorOpen] = useState(false);
+  const [editingTable, setEditingTable] = useState<RollTableEntity | null>(null);
+  const [activeRolledRow, setActiveRolledRow] = useState<{
+    tableId: string;
+    rowId: string;
+    rollTotal: number;
+    item: any;
+  } | null>(null);
+  const [tableRowSearch, setTableRowSearch] = useState('');
 
   // Filtered Monsters (Bestiary - excludes NPCs)
   const filteredMonsters = useMemo(() => {
@@ -177,14 +194,29 @@ export const CompendiumView: React.FC = () => {
     showToast(`Downloaded ${type} CSV template!`);
   };
 
-  const handleRollTable = (table: any) => {
+  const handleRollTable = (table: RollTableEntity) => {
+    setSelectedTableId(table.id);
     const rollResult = rollCustomFormula(table.diceFormula, undefined, `Table: ${table.name}`);
     // Find matching table row
     const item = table.items.find(
       (it: any) => rollResult.total >= it.rangeMin && rollResult.total <= it.rangeMax
     );
     if (item) {
-      showToast(`Table Result (${rollResult.total}): ${item.result}`);
+      setActiveRolledRow({
+        tableId: table.id,
+        rowId: item.id,
+        rollTotal: rollResult.total,
+        item,
+      });
+      showToast(`🎲 Rolled [${rollResult.total}]: ${item.result}`);
+    } else {
+      setActiveRolledRow({
+        tableId: table.id,
+        rowId: '',
+        rollTotal: rollResult.total,
+        item: null,
+      });
+      showToast(`🎲 Rolled [${rollResult.total}] (No row matched range)`);
     }
   };
 
@@ -244,21 +276,25 @@ export const CompendiumView: React.FC = () => {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => {
-                if (compendiumSubTab === 'npcs') {
+                if (compendiumSubTab === 'tables') {
+                  setEditingTable(null);
+                  setIsTableEditorOpen(true);
+                } else if (compendiumSubTab === 'npcs') {
                   setEditingEntity({
                     type: 'monster',
                     isNpc: true,
                     campaignId: activeCampaignId || undefined,
                   });
+                  setIsEditorOpen(true);
                 } else {
                   setEditingEntity(null);
+                  setIsEditorOpen(true);
                 }
-                setIsEditorOpen(true);
               }}
               className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-lg shadow-sm transition-all flex items-center space-x-1.5"
             >
               <Plus className="w-4 h-4" />
-              <span>{compendiumSubTab === 'npcs' ? 'Create NPC' : 'Create Entry'}</span>
+              <span>{compendiumSubTab === 'tables' ? 'Create Table' : compendiumSubTab === 'npcs' ? 'Create NPC' : 'Create Entry'}</span>
             </button>
 
             <button
@@ -666,36 +702,72 @@ export const CompendiumView: React.FC = () => {
             filteredTables.length === 0 ? (
               <div className="text-center py-8 text-xs text-slate-500">No roll tables found.</div>
             ) : (
-              filteredTables.map((t) => (
-                <div
-                  key={t.id}
-                  className="p-3 rounded-lg bg-surface-100 border border-surface-border space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-serif text-xs font-bold text-slate-200">{t.name}</span>
-                    <span className="px-1.5 py-0.5 rounded bg-purple-950 border border-purple-800 text-purple-300 font-mono text-[10px]">
-                      {t.diceFormula}
-                    </span>
+              filteredTables.map((t) => {
+                const isSelected = selectedTableId === t.id || (!selectedTableId && filteredTables[0]?.id === t.id);
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => setSelectedTableId(t.id)}
+                    className={`p-3 rounded-lg border transition-all cursor-pointer space-y-2 ${
+                      isSelected
+                        ? 'bg-purple-950/30 border-purple-500/50 shadow-md shadow-purple-950/30 ring-1 ring-purple-500/30'
+                        : 'bg-surface-100 border-surface-border hover:bg-surface-hover hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`font-serif text-xs font-bold ${isSelected ? 'text-purple-300' : 'text-slate-200'}`}>
+                        {t.name}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded bg-purple-950 border border-purple-800 text-purple-300 font-mono text-[10px]">
+                        {t.diceFormula}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-[10px] text-slate-400">
+                      <span>{t.items.length} rows</span>
+                      {t.theme && <span className="px-1.5 py-0.2 rounded bg-surface-50 text-slate-300">🏛️ {t.theme}</span>}
+                      {t.columns && t.columns.length > 0 && (
+                        <span className="px-1.5 py-0.2 rounded bg-surface-50 text-slate-300">{t.columns.length} columns</span>
+                      )}
+                    </div>
+                    {t.description && <p className="text-[11px] text-slate-400 line-clamp-1">{t.description}</p>}
+                    <div className="flex items-center justify-between pt-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRollTable(t);
+                        }}
+                        className="px-2.5 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center space-x-1 transition-colors shadow-sm"
+                      >
+                        <Dices className="w-3.5 h-3.5" />
+                        <span>Roll</span>
+                      </button>
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingTable(t);
+                            setIsTableEditorOpen(true);
+                          }}
+                          className="p-1 text-slate-400 hover:text-white transition-colors"
+                          title="Edit Table"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteRollTable(t.id);
+                          }}
+                          className="p-1 text-slate-500 hover:text-red-400 transition-colors"
+                          title="Delete table"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-400 line-clamp-2">{t.description}</p>
-                  <div className="flex items-center justify-between pt-1">
-                    <button
-                      onClick={() => handleRollTable(t)}
-                      className="px-2.5 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center space-x-1 transition-colors"
-                    >
-                      <Dices className="w-3.5 h-3.5" />
-                      <span>Roll on Table</span>
-                    </button>
-                    <button
-                      onClick={() => deleteRollTable(t.id)}
-                      className="p-1 text-slate-500 hover:text-red-400 transition-colors"
-                      title="Delete table"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )
           )}
         </div>
@@ -786,55 +858,251 @@ export const CompendiumView: React.FC = () => {
             )
           )}
 
-          {compendiumSubTab === 'tables' && (
-            <div className="max-w-2xl mx-auto space-y-4">
-              <div className="p-4 rounded-xl bg-surface-100 border border-surface-border">
-                <h3 className="font-serif text-lg font-bold text-slate-100 mb-2">Roll Tables & Generators</h3>
-                <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                  Random tables can be rolled with 1-click or integrated into encounters and campaign sessions.
-                </p>
-                <div className="space-y-3">
-                  {db.tables.map((tbl) => (
-                    <div key={tbl.id} className="p-3 rounded-lg bg-surface-50 border border-surface-border">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-sm text-slate-200">{tbl.name} ({tbl.diceFormula})</span>
+          {compendiumSubTab === 'tables' && (() => {
+            const currentTable = db.tables.find((t) => t.id === selectedTableId) || filteredTables[0] || db.tables[0];
+            if (!currentTable) {
+              return (
+                <div className="h-full flex items-center justify-center text-slate-500 text-xs">
+                  No roll tables available. Click "Create Table" above to build one.
+                </div>
+              );
+            }
+
+            const tableColumns = currentTable.columns && currentTable.columns.length > 0 
+              ? currentTable.columns 
+              : [];
+
+            const filteredRows = currentTable.items.filter((r) => {
+              if (!tableRowSearch.trim()) return true;
+              const q = tableRowSearch.toLowerCase();
+              if (r.result.toLowerCase().includes(q)) return true;
+              if (r.values) {
+                return Object.values(r.values).some((v) => String(v).toLowerCase().includes(q));
+              }
+              return false;
+            });
+
+            return (
+              <div className="max-w-5xl mx-auto space-y-5">
+                {/* Table Header Card */}
+                <div className="p-5 rounded-xl bg-surface-100 border border-surface-border space-y-4">
+                  <div className="flex items-start justify-between flex-wrap gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-2.5">
+                        <h2 className="font-serif text-xl font-bold text-slate-100">{currentTable.name}</h2>
+                        <span className="px-2.5 py-0.5 rounded-full bg-purple-950 border border-purple-700 text-purple-300 font-mono font-bold text-xs shadow-sm">
+                          {currentTable.diceFormula}
+                        </span>
+                        {currentTable.theme && (
+                          <span className="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 text-emerald-300 text-xs">
+                            🏛️ {currentTable.theme}
+                          </span>
+                        )}
+                        {currentTable.category && (
+                          <span className="px-2 py-0.5 rounded bg-blue-950 border border-blue-800 text-blue-300 text-xs">
+                            {currentTable.category}
+                          </span>
+                        )}
+                      </div>
+                      {currentTable.description && (
+                        <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">{currentTable.description}</p>
+                      )}
+                    </div>
+
+                    {/* Toolbar Actions */}
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleRollTable(currentTable)}
+                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-bold text-xs rounded-lg shadow-md transition-all flex items-center space-x-1.5"
+                      >
+                        <Dices className="w-4 h-4" />
+                        <span>Roll on Table ({currentTable.diceFormula})</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setEditingTable(currentTable);
+                          setIsTableEditorOpen(true);
+                        }}
+                        className="px-3 py-2 bg-surface-50 hover:bg-surface-hover border border-surface-border text-slate-200 text-xs font-semibold rounded-lg transition-colors flex items-center space-x-1.5"
+                        title="Edit columns, rows, and dice formula"
+                      >
+                        <Edit className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Edit Table</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const duplicate: RollTableEntity = {
+                            ...JSON.parse(JSON.stringify(currentTable)),
+                            id: `table-${Date.now()}`,
+                            name: `${currentTable.name} (Copy)`,
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString(),
+                          };
+                          saveRollTable(duplicate);
+                          setSelectedTableId(duplicate.id);
+                          showToast(`Duplicated table "${duplicate.name}"`);
+                        }}
+                        className="p-2 bg-surface-50 hover:bg-surface-hover border border-surface-border text-slate-300 hover:text-white text-xs rounded-lg transition-colors"
+                        title="Duplicate Table"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() => deleteRollTable(currentTable.id)}
+                        className="p-2 bg-surface-50 hover:bg-red-950/60 border border-surface-border hover:border-red-800 text-slate-400 hover:text-red-300 text-xs rounded-lg transition-colors"
+                        title="Delete Table"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Active Rolled Outcome Banner */}
+                  {activeRolledRow && activeRolledRow.tableId === currentTable.id && activeRolledRow.item && (
+                    <div className="p-4 rounded-xl bg-purple-950/60 border-2 border-purple-500/80 shadow-lg shadow-purple-950/50 animate-fadeIn space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="px-2.5 py-1 rounded bg-purple-600 text-white font-mono font-bold text-xs shadow">
+                            Rolled: {activeRolledRow.rollTotal}
+                          </span>
+                          <span className="font-serif font-bold text-base text-amber-300">
+                            {activeRolledRow.item.result}
+                          </span>
+                        </div>
                         <button
-                          onClick={() => handleRollTable(tbl)}
-                          className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded transition-colors"
+                          onClick={() => setActiveRolledRow(null)}
+                          className="text-purple-300 hover:text-white text-xs p-1"
                         >
-                          Roll
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
-                      <div className="divide-y divide-surface-border text-xs">
-                        {tbl.items.map((row) => (
-                          <div key={row.id} className="py-1 flex items-start space-x-2 text-slate-300">
-                            <span className="font-mono font-bold text-purple-400 shrink-0">
-                              {row.rangeMin === row.rangeMax ? row.rangeMin : `${row.rangeMin}-${row.rangeMax}`}:
-                            </span>
-                            <span>{row.result}</span>
-                          </div>
-                        ))}
-                      </div>
+
+                      {/* Rolled Values Breakdown */}
+                      {activeRolledRow.item.values && Object.keys(activeRolledRow.item.values).length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-purple-800/60 text-xs">
+                          {Object.entries(activeRolledRow.item.values).map(([k, v]) => (
+                            <div key={k} className="bg-[#0b0e14]/60 p-2 rounded border border-purple-900/50">
+                              <div className="text-[10px] text-purple-400 capitalize font-medium">{k}:</div>
+                              <div className="text-slate-200 font-semibold">{String(v)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  )}
+
+                  {/* Table Search & Row Count Filter Bar */}
+                  <div className="flex items-center justify-between pt-2 border-t border-surface-border/60">
+                    <div className="relative w-72">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                      <input
+                        type="text"
+                        value={tableRowSearch}
+                        onChange={(e) => setTableRowSearch(e.target.value)}
+                        placeholder="Search rows or column values..."
+                        className="w-full bg-[#0b0e14] border border-surface-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+                      />
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      Showing {filteredRows.length} of {currentTable.items.length} rows
+                    </div>
+                  </div>
+                </div>
+
+                {/* Multi-Column Data Table */}
+                <div className="overflow-x-auto rounded-xl border border-surface-border bg-surface-100/40">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-surface-100 border-b border-surface-border text-slate-300 font-serif">
+                        <th className="p-3 w-20 text-center">Range</th>
+                        <th className="p-3 min-w-[180px]">Result / Primary Item</th>
+                        {tableColumns.map((col) => (
+                          <th key={col.key} className="p-3 min-w-[130px] font-semibold">
+                            {col.label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-border/60">
+                      {filteredRows.map((row) => {
+                        const isWinningRow = activeRolledRow?.tableId === currentTable.id && activeRolledRow?.rowId === row.id;
+                        return (
+                          <tr
+                            key={row.id}
+                            className={`transition-colors ${
+                              isWinningRow
+                                ? 'bg-purple-900/40 border-l-4 border-l-purple-500 text-slate-100 font-medium'
+                                : 'hover:bg-surface-100/60 text-slate-300'
+                            }`}
+                          >
+                            <td className="p-3 text-center">
+                              <span className={`px-2 py-0.5 rounded font-mono font-bold text-xs ${
+                                isWinningRow ? 'bg-purple-600 text-white' : 'bg-surface-50 text-purple-400 border border-surface-border'
+                              }`}>
+                                {row.rangeMin === row.rangeMax ? row.rangeMin : `${row.rangeMin}-${row.rangeMax}`}
+                              </span>
+                            </td>
+                            <td className={`p-3 font-semibold ${isWinningRow ? 'text-amber-300 font-bold' : 'text-slate-200'}`}>
+                              {row.result}
+                            </td>
+                            {tableColumns.map((col) => {
+                              const val = row.values?.[col.key] ?? '';
+                              if (col.type === 'badge' && val) {
+                                return (
+                                  <td key={col.key} className="p-3">
+                                    <span className="px-2 py-0.5 rounded bg-surface-50 border border-surface-border text-[11px] text-slate-300 font-mono">
+                                      {val}
+                                    </span>
+                                  </td>
+                                );
+                              }
+                              return (
+                                <td key={col.key} className="p-3 text-slate-300 text-xs">
+                                  {val}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 
-      {/* Dynamic Entity Editor Modal */}
+      {/* Dynamic Entity Editor Modal (Monsters, Spells, Items) */}
       {isEditorOpen && (
         <EntityEditorModal
-          type={compendiumSubTab === 'tables' ? 'rollTable' : compendiumSubTab === 'monsters' ? 'monster' : compendiumSubTab === 'spells' ? 'spell' : 'item'}
+          type={compendiumSubTab === 'monsters' ? 'monster' : compendiumSubTab === 'spells' ? 'spell' : 'item'}
           initialData={editingEntity}
           onClose={() => setIsEditorOpen(false)}
           onSave={(entity) => {
-            if (compendiumSubTab === 'monsters') saveMonster(entity);
+            if (compendiumSubTab === 'monsters' || compendiumSubTab === 'npcs') saveMonster(entity);
             else if (compendiumSubTab === 'spells') saveSpell(entity);
             else if (compendiumSubTab === 'items') saveItem(entity);
-            else if (compendiumSubTab === 'tables') saveRollTable(entity);
+          }}
+        />
+      )}
+
+      {/* Dedicated Multi-Column Roll Table Editor Modal */}
+      {isTableEditorOpen && (
+        <RollTableEditorModal
+          initialData={editingTable}
+          onClose={() => {
+            setIsTableEditorOpen(false);
+            setEditingTable(null);
+          }}
+          onSave={(table) => {
+            saveRollTable(table);
+            setSelectedTableId(table.id);
+            showToast(`Saved Roll Table "${table.name}"!`);
           }}
         />
       )}

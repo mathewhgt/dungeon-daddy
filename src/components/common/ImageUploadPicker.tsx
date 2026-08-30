@@ -3,12 +3,15 @@ import { Upload, Link as LinkIcon, Trash2, Sparkles, Image as ImageIcon, Crop } 
 import { TokenAvatar } from './TokenAvatar';
 import { ImageCropperModal } from './ImageCropperModal';
 
+import { processImageUpload } from '../../utils/imageUtils';
+
 interface ImageUploadPickerProps {
   label?: string;
   avatarUrl?: string;
   tokenUrl?: string;
   onAvatarChange: (url: string) => void;
   onTokenChange: (url: string) => void;
+  onImagesChange?: (urls: { avatarUrl?: string; tokenUrl?: string }) => void;
   entityName?: string;
   entityType?: 'monster' | 'player' | 'item' | 'spell' | 'npc';
   monsterType?: string;
@@ -20,6 +23,7 @@ export const ImageUploadPicker: React.FC<ImageUploadPickerProps> = ({
   tokenUrl = '',
   onAvatarChange,
   onTokenChange,
+  onImagesChange,
   entityName = 'Entity',
   entityType = 'monster',
   monsterType = '',
@@ -29,30 +33,49 @@ export const ImageUploadPicker: React.FC<ImageUploadPickerProps> = ({
   const [tokenColor, setTokenColor] = useState('');
   const [cropModalConfig, setCropModalConfig] = useState<{ isOpen: boolean; mode: 'token' | 'portrait'; imageSrc: string } | null>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, isToken = false) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isToken = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
+    try {
+      const { avatarUrl: processedAvatar, tokenUrl: processedToken } = await processImageUpload(file, isToken);
       if (isToken) {
-        onTokenChange(base64);
+        if (onImagesChange) {
+          onImagesChange({ tokenUrl: processedToken });
+        } else {
+          onTokenChange(processedToken);
+        }
       } else {
-        onAvatarChange(base64);
-        if (!tokenUrl) {
-          onTokenChange(base64); // Auto-generate circular token from avatar if empty
+        if (onImagesChange) {
+          onImagesChange({
+            avatarUrl: processedAvatar,
+            tokenUrl: tokenUrl || processedToken,
+          });
+        } else {
+          onAvatarChange(processedAvatar);
+          if (!tokenUrl) {
+            onTokenChange(processedToken);
+          }
         }
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Failed to process image upload:', err);
+    }
   };
 
   const handleApplyUrl = () => {
-    if (!urlInput.trim()) return;
-    onAvatarChange(urlInput.trim());
-    if (!tokenUrl) {
-      onTokenChange(urlInput.trim());
+    const trimmed = urlInput.trim();
+    if (!trimmed) return;
+    if (onImagesChange) {
+      onImagesChange({
+        avatarUrl: trimmed,
+        tokenUrl: tokenUrl || trimmed,
+      });
+    } else {
+      onAvatarChange(trimmed);
+      if (!tokenUrl) {
+        onTokenChange(trimmed);
+      }
     }
     setUrlInput('');
   };
@@ -219,8 +242,12 @@ export const ImageUploadPicker: React.FC<ImageUploadPickerProps> = ({
             <button
               type="button"
               onClick={() => {
-                onAvatarChange('');
-                onTokenChange('');
+                if (onImagesChange) {
+                  onImagesChange({ avatarUrl: '', tokenUrl: '' });
+                } else {
+                  onAvatarChange('');
+                  onTokenChange('');
+                }
               }}
               className="p-1 text-slate-500 hover:text-red-400 rounded hover:bg-surface-50 self-start"
               title="Remove image"

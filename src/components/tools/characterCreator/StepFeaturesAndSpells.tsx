@@ -13,6 +13,7 @@ import {
   Eye,
   Award,
   Layers,
+  Wand2,
 } from 'lucide-react';
 import {
   CharacterCreationState,
@@ -20,11 +21,12 @@ import {
   WeaponMasteryDefinition2024,
 } from '../../../types/characterCreator';
 import {
-  CLASSES_2024,
-  BACKGROUNDS_2024,
+  getMergedClasses,
+  getMergedBackgrounds,
+  getMergedSpecies,
+  getMergedOriginFeats,
   WEAPONS_2024,
   WEAPON_MASTERIES_2024,
-  ORIGIN_FEATS_2024,
   SKILL_DEFINITIONS,
 } from '../../../services/characterCreationService';
 import { useApp } from '../../../context/AppContext';
@@ -38,8 +40,56 @@ interface StepFeaturesAndSpellsProps {
 
 export const StepFeaturesAndSpells: React.FC<StepFeaturesAndSpellsProps> = ({ state, onChange }) => {
   const { db } = useApp();
-  const selectedClass = CLASSES_2024.find((c) => c.id === state.selectedClassId) || CLASSES_2024[0];
-  const selectedBackground = BACKGROUNDS_2024.find((b) => b.id === state.selectedBackgroundId) || BACKGROUNDS_2024[0];
+  const classes = useMemo(() => getMergedClasses(db.customSubclasses || []), [db.customSubclasses]);
+  const backgrounds = useMemo(() => getMergedBackgrounds(db.customBackgrounds || []), [db.customBackgrounds]);
+  const speciesList = useMemo(() => getMergedSpecies(db.customSpecies || []), [db.customSpecies]);
+  const originFeats = useMemo(() => getMergedOriginFeats(db.customFeats || []), [db.customFeats]);
+
+  const selectedClass = classes.find((c) => c.id === state.selectedClassId) || classes[0];
+  const selectedBackground = backgrounds.find((b) => b.id === state.selectedBackgroundId) || backgrounds[0];
+  const selectedSpecies = speciesList.find((s) => s.id === state.selectedSpeciesId) || speciesList[0];
+  const selectedSubclass = selectedClass.subclasses.find((s) => s.id === state.selectedSubclassId);
+  const isHuman = state.selectedSpeciesId === 'human';
+  const bgOriginFeatObj = originFeats.find((f) => selectedBackground.originFeat.includes(f.name));
+  const humanExtraFeatObj = isHuman && state.humanExtraFeat ? originFeats.find((f) => f.name === state.humanExtraFeat) : null;
+  const selectedLineage = selectedSpecies.lineages?.find((l) => l.id === state.selectedLineageId);
+
+  // Group bonus spells by source
+  const grantedSpellsList = useMemo(() => {
+    const list: { name: string; source: string; spellObj?: SpellEntity }[] = [];
+    const addedNames = new Set<string>();
+
+    const addSpells = (spells: string[] | undefined, source: string) => {
+      (spells || []).forEach((spName) => {
+        if (!addedNames.has(spName)) {
+          addedNames.add(spName);
+          const spellObj = db.spells?.find((s) => s.name.toLowerCase() === spName.toLowerCase());
+          list.push({ name: spName, source, spellObj });
+        }
+      });
+    };
+
+    if (selectedSubclass?.bonusSpells) {
+      addSpells(selectedSubclass.bonusSpells, `Subclass (${selectedSubclass.name})`);
+    }
+    if (bgOriginFeatObj?.bonusSpells) {
+      addSpells(bgOriginFeatObj.bonusSpells, `Origin Feat (${bgOriginFeatObj.name})`);
+    }
+    if (humanExtraFeatObj?.bonusSpells) {
+      addSpells(humanExtraFeatObj.bonusSpells, `Human Feat (${humanExtraFeatObj.name})`);
+    }
+    if (selectedBackground.bonusSpells) {
+      addSpells(selectedBackground.bonusSpells, `Background (${selectedBackground.name})`);
+    }
+    if (selectedSpecies.bonusSpells) {
+      addSpells(selectedSpecies.bonusSpells, `Species (${selectedSpecies.name})`);
+    }
+    if (selectedLineage?.bonusSpells) {
+      addSpells(selectedLineage.bonusSpells, `Lineage (${selectedLineage.name})`);
+    }
+
+    return list;
+  }, [selectedSubclass, bgOriginFeatObj, humanExtraFeatObj, selectedBackground, selectedSpecies, selectedLineage, db.spells]);
 
   const [spellSearch, setSpellSearch] = useState('');
   const [selectedSchool, setSelectedSchool] = useState<string>('all');
@@ -127,7 +177,7 @@ export const StepFeaturesAndSpells: React.FC<StepFeaturesAndSpellsProps> = ({ st
   };
 
   // Check if Magic Initiate feat is present
-  const hasMagicInitiate = selectedBackground.originFeat.includes('Magic Initiate') || state.humanExtraFeat === 'Magic Initiate';
+  const hasMagicInitiate = selectedBackground.originFeat.includes('Magic Initiate') || (isHuman && state.humanExtraFeat === 'Magic Initiate');
 
   return (
     <div className="space-y-8">
@@ -228,6 +278,71 @@ export const StepFeaturesAndSpells: React.FC<StepFeaturesAndSpellsProps> = ({ st
           </div>
         </div>
       ) : null}
+
+      {/* SECTION: GRANTED SUBCLASS, FEAT & INNATE SPELLS */}
+      {grantedSpellsList.length > 0 && (
+        <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-950/30 via-surface-100 to-surface-100 border border-purple-800/40 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between border-b border-purple-900/40 pb-3 flex-wrap gap-2">
+            <div>
+              <h3 className="font-serif font-bold text-base text-purple-200 flex items-center space-x-2">
+                <Wand2 className="w-4 h-4 text-purple-400" />
+                <span>Granted & Always Prepared Spells</span>
+              </h3>
+              <p className="text-xs text-slate-400">
+                These spells are automatically granted by your subclass, origin feat, species, or background and do not count against your prepared spells limit.
+              </p>
+            </div>
+            <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-purple-900/60 border border-purple-700 text-purple-200">
+              {grantedSpellsList.length} Granted Spell{grantedSpellsList.length > 1 ? 's' : ''}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {grantedSpellsList.map((item) => {
+              const spell = item.spellObj;
+              return (
+                <div
+                  key={item.name}
+                  className="p-3 rounded-xl bg-surface-50/80 border border-purple-900/30 flex flex-col justify-between hover:border-purple-600/50 transition-colors"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-1">
+                      <strong className="text-xs text-purple-200 font-semibold">{item.name}</strong>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800 font-mono shrink-0">
+                        {item.source}
+                      </span>
+                    </div>
+
+                    {spell ? (
+                      <div className="mt-1.5 space-y-1">
+                        <div className="flex items-center space-x-2 text-[10px] text-slate-400 font-mono">
+                          <span>{spell.level === 0 ? 'Cantrip' : `Level ${spell.level}`}</span>
+                          <span>·</span>
+                          <span>{spell.school}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 line-clamp-2">{spell.description}</p>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 mt-1 italic">Granted special spell.</p>
+                    )}
+                  </div>
+
+                  {spell && (
+                    <button
+                      type="button"
+                      onClick={() => setInspectingSpell(spell)}
+                      className="mt-2 pt-1 border-t border-purple-900/30 text-[10px] text-purple-400 hover:text-purple-300 text-left flex items-center space-x-1"
+                    >
+                      <Info className="w-3 h-3" />
+                      <span>View Spell Details</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* SECTION 2: SPELLCASTING SELECTION */}
       {isCaster && (
@@ -411,16 +526,16 @@ export const StepFeaturesAndSpells: React.FC<StepFeaturesAndSpellsProps> = ({ st
         </div>
 
         <p className="text-xs text-slate-300 leading-relaxed">
-          {ORIGIN_FEATS_2024.find((f) => selectedBackground.originFeat.includes(f.name))?.description ||
+          {originFeats.find((f) => selectedBackground.originFeat.includes(f.name))?.description ||
             selectedBackground.originFeat}
         </p>
 
         {/* Extra Human Feat display if applicable */}
-        {state.humanExtraFeat && (
+        {isHuman && state.humanExtraFeat && (
           <div className="pt-2 border-t border-surface-border text-xs text-slate-300 space-y-1">
             <strong className="text-amber-400">Human Bonus Origin Feat: {state.humanExtraFeat}</strong>
             <p className="text-[11px] text-slate-400">
-              {ORIGIN_FEATS_2024.find((f) => f.name === state.humanExtraFeat)?.description}
+              {originFeats.find((f) => f.name === state.humanExtraFeat)?.description}
             </p>
           </div>
         )}

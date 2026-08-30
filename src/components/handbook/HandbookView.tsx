@@ -70,6 +70,7 @@ import { useApp } from '../../context/AppContext';
 import { CustomBookModal } from './CustomBookModal';
 import { CustomChapterModal } from './CustomChapterModal';
 import { HandbookEditorModal } from './HandbookEditorModal';
+import { CustomHomebrewModal, HomebrewType } from './CustomHomebrewModal';
 
 export type HandbookCategoryTab = 
   | 'chapters' 
@@ -121,6 +122,10 @@ export const HandbookView: React.FC = () => {
     deleteCustomChapter,
     saveChapterOverride,
     resetChapterOverride,
+    deleteCustomSubclass,
+    deleteCustomFeat,
+    deleteCustomBackground,
+    deleteCustomSpecies,
     handbookTarget,
     setHandbookTarget
   } = useApp();
@@ -128,6 +133,11 @@ export const HandbookView: React.FC = () => {
   const customBooks = db.customBooks || [];
   const handbookOverrides = db.handbookOverrides || {};
   const customEntries = db.handbookCustomEntries || [];
+  const customSubclasses = db.customSubclasses || [];
+  const customFeats = db.customFeats || [];
+  const customBackgrounds = db.customBackgrounds || [];
+  const customSpecies = db.customSpecies || [];
+
   const books = useMemo(() => getAllBooks(customBooks), [customBooks]);
   const [selectedBookId, setSelectedBookId] = useState<string>(books[0]?.id || 'phb-2024');
 
@@ -136,10 +146,10 @@ export const HandbookView: React.FC = () => {
     [selectedBookId, customBooks, handbookOverrides, customEntries]
   );
   
-  const classes = useMemo(() => getAllClasses(), []);
-  const species = useMemo(() => getAllSpecies(), []);
-  const backgrounds = useMemo(() => getAllBackgrounds(), []);
-  const feats = useMemo(() => getAllFeats(), []);
+  const classes = useMemo(() => getAllClasses(customSubclasses), [customSubclasses]);
+  const species = useMemo(() => getAllSpecies(customSpecies), [customSpecies]);
+  const backgrounds = useMemo(() => getAllBackgrounds(customBackgrounds), [customBackgrounds]);
+  const feats = useMemo(() => getAllFeats(customFeats), [customFeats]);
   const conditions = useMemo(() => getAllConditions(), []);
   const weaponMasteries = useMemo(() => getAllWeaponMasteries(), []);
 
@@ -161,6 +171,11 @@ export const HandbookView: React.FC = () => {
   const [isEditorModalOpen, setIsEditorModalOpen] = useState(false);
   const [editingChapter, setEditingChapter] = useState<CustomChapterEntity | null>(null);
   const [defaultParentId, setDefaultParentId] = useState<string | null>(null);
+
+  // Homebrew Modal state
+  const [isHomebrewModalOpen, setIsHomebrewModalOpen] = useState(false);
+  const [homebrewModalType, setHomebrewModalType] = useState<HomebrewType>('subclass');
+  const [editingHomebrewItem, setEditingHomebrewItem] = useState<any | null>(null);
 
   // Active preview cards
   const [selectedClass, setSelectedClass] = useState<CharacterClassRule | null>(null);
@@ -248,8 +263,18 @@ export const HandbookView: React.FC = () => {
   }, [handbookTarget, classes, species, backgrounds, feats, conditions, weaponMasteries, setHandbookTarget]);
 
   const searchResults: SearchResultItem[] = useMemo(() => {
-    return searchHandbook(searchQuery, selectedBookId, customBooks, handbookOverrides, customEntries);
-  }, [searchQuery, selectedBookId, customBooks, handbookOverrides, customEntries]);
+    return searchHandbook(
+      searchQuery,
+      selectedBookId,
+      customBooks,
+      handbookOverrides,
+      customEntries,
+      customSubclasses,
+      customSpecies,
+      customBackgrounds,
+      customFeats
+    );
+  }, [searchQuery, selectedBookId, customBooks, handbookOverrides, customEntries, customSubclasses, customSpecies, customBackgrounds, customFeats]);
 
   const toggleExpand = (chapId: string) => {
     setExpandedChapterIds((prev) => {
@@ -769,6 +794,23 @@ export const HandbookView: React.FC = () => {
           </button>
 
           <button
+            onClick={() => {
+              if (activeCategory === 'classes') setHomebrewModalType('subclass');
+              else if (activeCategory === 'species') setHomebrewModalType('species');
+              else if (activeCategory === 'backgrounds') setHomebrewModalType('background');
+              else if (activeCategory === 'feats') setHomebrewModalType('feat');
+              else setHomebrewModalType('subclass');
+              setEditingHomebrewItem(null);
+              setIsHomebrewModalOpen(true);
+            }}
+            className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs rounded-lg flex items-center space-x-1.5 transition-all shadow-sm"
+            title="Create custom Homebrew subclass, feat, background, or species"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>+ Create Homebrew</span>
+          </button>
+
+          <button
             onClick={handleProjectSection}
             className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-lg flex items-center space-x-1.5 transition-all shadow-sm"
             title="Project section to Player Screen"
@@ -1104,10 +1146,75 @@ export const HandbookView: React.FC = () => {
               /* Character Classes */
               <div className="space-y-1.5">
                 <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                  <span>5e Classes</span>
-                  <span className="text-purple-400 font-mono">{classes.length + customClassEntries.length} Classes</span>
+                  <span>5e Classes & Subclasses</span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => {
+                        setHomebrewModalType('subclass');
+                        setEditingHomebrewItem(null);
+                        setIsHomebrewModalOpen(true);
+                      }}
+                      className="text-[10px] font-bold text-purple-400 hover:text-purple-300 flex items-center space-x-1"
+                      title="Create new Homebrew Subclass"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>+ Subclass</span>
+                    </button>
+                    <span className="text-purple-400 font-mono">{classes.length} Classes</span>
+                  </div>
                 </div>
-                {/* Official Classes */}
+
+                {/* Custom Subclasses standalone list */}
+                {customSubclasses.length > 0 && (
+                  <div className="mb-2 p-2 rounded-xl bg-purple-950/30 border border-purple-800/40 space-y-1.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-purple-400 flex items-center justify-between">
+                      <span>Custom Subclasses ({customSubclasses.length})</span>
+                    </div>
+                    {customSubclasses.map((cs) => (
+                      <div
+                        key={cs.id}
+                        className="p-2 rounded-lg bg-surface-100/90 border border-purple-500/30 flex items-center justify-between space-x-2"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center space-x-1.5">
+                            <span className="text-xs font-bold text-purple-300 truncate">{cs.name}</span>
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-purple-900/60 border border-purple-700 text-purple-200 font-mono uppercase">
+                              {cs.classId}
+                            </span>
+                            {cs.bonusSpells && cs.bonusSpells.length > 0 && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-950/90 border border-purple-800 text-purple-300 font-mono">
+                                ✨ {cs.bonusSpells.length} Bonus Spells
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-400 line-clamp-1">{cs.summary}</p>
+                        </div>
+                        <div className="flex items-center space-x-1 shrink-0">
+                          <button
+                            onClick={() => {
+                              setHomebrewModalType('subclass');
+                              setEditingHomebrewItem(cs);
+                              setIsHomebrewModalOpen(true);
+                            }}
+                            className="p-1 rounded text-slate-400 hover:text-purple-300 hover:bg-surface-50"
+                            title="Edit Subclass"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => deleteCustomSubclass(cs.id)}
+                            className="p-1 rounded text-slate-400 hover:text-red-400 hover:bg-surface-50"
+                            title="Delete Subclass"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Official & Merged Classes */}
                 {classes.map((cls) => (
                   <button
                     key={cls.id}
@@ -1139,94 +1246,98 @@ export const HandbookView: React.FC = () => {
                     </div>
                   </button>
                 ))}
-                {/* Custom Class Entries */}
-                {customClassEntries.map((cc) => (
-                  <button
-                    key={cc.id}
-                    onClick={() => {
-                      setSelectedClass(null);
-                      setSelectedChapterId(cc.id);
-                    }}
-                    className={`w-full text-left p-2.5 rounded-lg border transition-all space-y-1 ${
-                      selectedChapterId === cc.id
-                        ? 'bg-purple-500/15 border-purple-500/50 text-purple-300 shadow-sm'
-                        : 'bg-surface-100/60 border-surface-border text-slate-300 hover:bg-surface-hover'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-serif text-xs font-bold text-purple-300">{cc.title}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-950/80 border border-purple-800 text-purple-300 font-mono">
-                        Custom
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-slate-400 line-clamp-2 leading-tight">
-                      {cc.tags && cc.tags.length > 0 ? cc.tags.join(' · ') : 'Custom Class / Subclass'}
-                    </div>
-                  </button>
-                ))}
               </div>
             ) : activeCategory === 'species' ? (
               /* Species */
               <div className="space-y-1.5">
                 <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
                   <span>Species & Lineages</span>
-                  <span className="text-emerald-400 font-mono">{species.length + customSpeciesEntries.length}</span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => {
+                        setHomebrewModalType('species');
+                        setEditingHomebrewItem(null);
+                        setIsHomebrewModalOpen(true);
+                      }}
+                      className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center space-x-1"
+                      title="Create new Homebrew Species"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>+ Species</span>
+                    </button>
+                    <span className="text-emerald-400 font-mono">{species.length} Species</span>
+                  </div>
                 </div>
-                {/* Official Species */}
+
+                {/* Species List */}
                 {species.map((sp) => (
-                  <button
+                  <div
                     key={sp.id}
-                    onClick={() => {
-                      setSelectedSpecies(sp);
-                      const targetChap = chapters.find((c) => c.id === sp.id || c.title.toLowerCase().includes(sp.name.toLowerCase()) || c.id === 'chapter-4-character-origins' || c.id === sp.chapterId);
-                      if (targetChap) {
-                        setSelectedChapterId(targetChap.id);
-                        setTimeout(() => scrollToSubheading(sp.name.toLowerCase()), 150);
-                      }
-                    }}
-                    className={`w-full text-left p-2.5 rounded-lg border transition-all space-y-1 ${
+                    className={`w-full p-2.5 rounded-lg border transition-all space-y-1 ${
                       selectedSpecies?.id === sp.id
                         ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300 shadow-sm'
                         : 'bg-surface-100/60 border-surface-border text-slate-300 hover:bg-surface-hover'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-serif text-xs font-bold text-emerald-400">{sp.name}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface-50 border border-surface-border text-slate-400 font-mono">
-                        {sp.size} · {sp.speed}
-                      </span>
+                      <button
+                        onClick={() => {
+                          setSelectedSpecies(sp);
+                          const targetChap = chapters.find((c) => c.id === sp.id || c.title.toLowerCase().includes(sp.name.toLowerCase()) || c.id === 'chapter-4-character-origins' || c.id === sp.chapterId);
+                          if (targetChap) {
+                            setSelectedChapterId(targetChap.id);
+                            setTimeout(() => scrollToSubheading(sp.name.toLowerCase()), 150);
+                          }
+                        }}
+                        className="text-left font-serif text-xs font-bold text-emerald-400 hover:underline flex items-center space-x-1.5"
+                      >
+                        <span>{sp.name}</span>
+                        {sp.isCustom && (
+                          <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-950/80 border border-emerald-800 text-emerald-300 font-mono">
+                            Custom
+                          </span>
+                        )}
+                      </button>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface-50 border border-surface-border text-slate-400 font-mono">
+                          {sp.size} · {sp.speed}
+                        </span>
+                        {sp.isCustom && (
+                          <>
+                            <button
+                              onClick={() => {
+                                const customEntity = customSpecies.find((c) => c.id === sp.id);
+                                if (customEntity) {
+                                  setHomebrewModalType('species');
+                                  setEditingHomebrewItem(customEntity);
+                                  setIsHomebrewModalOpen(true);
+                                }
+                              }}
+                              className="p-1 rounded text-slate-400 hover:text-emerald-300 hover:bg-surface-50"
+                              title="Edit Species"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => deleteCustomSpecies(sp.id)}
+                              className="p-1 rounded text-slate-400 hover:text-red-400 hover:bg-surface-50"
+                              title="Delete Species"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
+                    {sp.bonusSpells && sp.bonusSpells.length > 0 && (
+                      <div className="text-[10px] text-emerald-400 font-mono flex items-center space-x-1">
+                        <span>✨ Spells: {sp.bonusSpells.join(', ')}</span>
+                      </div>
+                    )}
                     <p className="text-[11px] text-slate-400 line-clamp-2 leading-tight">
                       {sp.summary}
                     </p>
-                  </button>
-                ))}
-                {/* Custom / User Created Species Entries */}
-                {customSpeciesEntries.map((csp) => (
-                  <button
-                    key={csp.id}
-                    onClick={() => {
-                      setSelectedSpecies(null);
-                      setSelectedChapterId(csp.id);
-                    }}
-                    className={`w-full text-left p-2.5 rounded-lg border transition-all space-y-1 ${
-                      selectedChapterId === csp.id
-                        ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300 shadow-sm'
-                        : 'bg-surface-100/60 border-surface-border text-slate-300 hover:bg-surface-hover'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-serif text-xs font-bold text-emerald-300 flex items-center space-x-1">
-                        <span>{csp.title}</span>
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950/80 border border-emerald-800 text-emerald-300 font-mono">
-                        Custom
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-slate-400 line-clamp-2 leading-tight">
-                      {csp.tags && csp.tags.length > 0 ? csp.tags.join(' · ') : (csp.parentId ? 'Nested Species Entry' : 'Custom Species Entry')}
-                    </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             ) : activeCategory === 'backgrounds' ? (
@@ -1234,61 +1345,92 @@ export const HandbookView: React.FC = () => {
               <div className="space-y-1.5">
                 <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
                   <span>Character Backgrounds</span>
-                  <span className="text-sky-400 font-mono">{backgrounds.length + customBackgroundEntries.length}</span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => {
+                        setHomebrewModalType('background');
+                        setEditingHomebrewItem(null);
+                        setIsHomebrewModalOpen(true);
+                      }}
+                      className="text-[10px] font-bold text-sky-400 hover:text-sky-300 flex items-center space-x-1"
+                      title="Create new Homebrew Background"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>+ Background</span>
+                    </button>
+                    <span className="text-sky-400 font-mono">{backgrounds.length} Backgrounds</span>
+                  </div>
                 </div>
-                {/* Official Backgrounds */}
+
+                {/* Backgrounds List */}
                 {backgrounds.map((bg) => (
-                  <button
+                  <div
                     key={bg.id}
-                    onClick={() => {
-                      setSelectedBackground(bg);
-                      const targetChap = chapters.find((c) => c.id === 'chapter-4-character-origins' || c.title.toLowerCase().includes(bg.name.toLowerCase()));
-                      if (targetChap) {
-                        setSelectedChapterId(targetChap.id);
-                        setTimeout(() => scrollToSubheading(bg.name.toLowerCase()), 150);
-                      }
-                    }}
-                    className={`w-full text-left p-2.5 rounded-lg border transition-all space-y-1 ${
+                    className={`w-full p-2.5 rounded-lg border transition-all space-y-1 ${
                       selectedBackground?.id === bg.id
                         ? 'bg-sky-500/15 border-sky-500/50 text-sky-300 shadow-sm'
                         : 'bg-surface-100/60 border-surface-border text-slate-300 hover:bg-surface-hover'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-serif text-xs font-bold text-sky-400">{bg.name}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface-50 border border-surface-border text-amber-300 font-mono">
-                        Feat: {bg.originFeat}
-                      </span>
+                      <button
+                        onClick={() => {
+                          setSelectedBackground(bg);
+                          const targetChap = chapters.find((c) => c.id === 'chapter-4-character-origins' || c.title.toLowerCase().includes(bg.name.toLowerCase()));
+                          if (targetChap) {
+                            setSelectedChapterId(targetChap.id);
+                            setTimeout(() => scrollToSubheading(bg.name.toLowerCase()), 150);
+                          }
+                        }}
+                        className="text-left font-serif text-xs font-bold text-sky-400 hover:underline flex items-center space-x-1.5"
+                      >
+                        <span>{bg.name}</span>
+                        {bg.isCustom && (
+                          <span className="text-[9px] px-1 py-0.2 rounded bg-sky-950/80 border border-sky-800 text-sky-300 font-mono">
+                            Custom
+                          </span>
+                        )}
+                      </button>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface-50 border border-surface-border text-amber-300 font-mono">
+                          Feat: {bg.originFeat}
+                        </span>
+                        {bg.isCustom && (
+                          <>
+                            <button
+                              onClick={() => {
+                                const customEntity = customBackgrounds.find((c) => c.id === bg.id);
+                                if (customEntity) {
+                                  setHomebrewModalType('background');
+                                  setEditingHomebrewItem(customEntity);
+                                  setIsHomebrewModalOpen(true);
+                                }
+                              }}
+                              className="p-1 rounded text-slate-400 hover:text-sky-300 hover:bg-surface-50"
+                              title="Edit Background"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => deleteCustomBackground(bg.id)}
+                              className="p-1 rounded text-slate-400 hover:text-red-400 hover:bg-surface-50"
+                              title="Delete Background"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
+                    {bg.bonusSpells && bg.bonusSpells.length > 0 && (
+                      <div className="text-[10px] text-sky-400 font-mono flex items-center space-x-1">
+                        <span>✨ Spells: {bg.bonusSpells.join(', ')}</span>
+                      </div>
+                    )}
                     <p className="text-[11px] text-slate-400 line-clamp-2 leading-tight">
                       {bg.summary}
                     </p>
-                  </button>
-                ))}
-                {/* Custom Backgrounds */}
-                {customBackgroundEntries.map((cbg) => (
-                  <button
-                    key={cbg.id}
-                    onClick={() => {
-                      setSelectedBackground(null);
-                      setSelectedChapterId(cbg.id);
-                    }}
-                    className={`w-full text-left p-2.5 rounded-lg border transition-all space-y-1 ${
-                      selectedChapterId === cbg.id
-                        ? 'bg-sky-500/15 border-sky-500/50 text-sky-300 shadow-sm'
-                        : 'bg-surface-100/60 border-surface-border text-slate-300 hover:bg-surface-hover'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-serif text-xs font-bold text-sky-300">{cbg.title}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-950/80 border border-sky-800 text-sky-300 font-mono">
-                        Custom
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-slate-400 line-clamp-2 leading-tight">
-                      {cbg.tags && cbg.tags.length > 0 ? cbg.tags.join(' · ') : 'Custom Background Entry'}
-                    </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             ) : activeCategory === 'feats' ? (
@@ -1296,63 +1438,92 @@ export const HandbookView: React.FC = () => {
               <div className="space-y-1.5">
                 <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
                   <span>Feats & Boons</span>
-                  <span className="text-amber-400 font-mono">{feats.length + customFeatEntries.length}</span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => {
+                        setHomebrewModalType('feat');
+                        setEditingHomebrewItem(null);
+                        setIsHomebrewModalOpen(true);
+                      }}
+                      className="text-[10px] font-bold text-amber-400 hover:text-amber-300 flex items-center space-x-1"
+                      title="Create new Homebrew Feat"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>+ Feat</span>
+                    </button>
+                    <span className="text-amber-400 font-mono">{feats.length} Feats</span>
+                  </div>
                 </div>
-                {/* Official Feats */}
+
+                {/* Feats List */}
                 {feats.map((ft) => (
-                  <button
+                  <div
                     key={ft.id}
-                    onClick={() => {
-                      setSelectedFeat(ft);
-                      const targetChap = chapters.find((c) => c.id === ft.id || c.title.toLowerCase().includes(ft.name.toLowerCase()) || c.id === 'chapter-5-feats');
-                      if (targetChap) {
-                        setSelectedChapterId(targetChap.id);
-                        setTimeout(() => scrollToSubheading(ft.name.toLowerCase()), 150);
-                      }
-                    }}
-                    className={`w-full text-left p-2.5 rounded-lg border transition-all space-y-1 ${
+                    className={`w-full p-2.5 rounded-lg border transition-all space-y-1 ${
                       selectedFeat?.id === ft.id
                         ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-sm'
                         : 'bg-surface-100/60 border-surface-border text-slate-300 hover:bg-surface-hover'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-serif text-xs font-bold text-amber-400">{ft.name}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface-50 border border-surface-border text-purple-300 font-mono">
-                        {ft.category}
-                      </span>
+                      <button
+                        onClick={() => {
+                          setSelectedFeat(ft);
+                          const targetChap = chapters.find((c) => c.id === ft.id || c.title.toLowerCase().includes(ft.name.toLowerCase()) || c.id === 'chapter-5-feats');
+                          if (targetChap) {
+                            setSelectedChapterId(targetChap.id);
+                            setTimeout(() => scrollToSubheading(ft.name.toLowerCase()), 150);
+                          }
+                        }}
+                        className="text-left font-serif text-xs font-bold text-amber-400 hover:underline flex items-center space-x-1.5"
+                      >
+                        <span>{ft.name}</span>
+                        {ft.isCustom && (
+                          <span className="text-[9px] px-1 py-0.2 rounded bg-amber-950/80 border border-amber-800 text-amber-300 font-mono">
+                            Custom
+                          </span>
+                        )}
+                      </button>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface-50 border border-surface-border text-purple-300 font-mono">
+                          {ft.category}
+                        </span>
+                        {ft.isCustom && (
+                          <>
+                            <button
+                              onClick={() => {
+                                const customEntity = customFeats.find((c) => c.id === ft.id);
+                                if (customEntity) {
+                                  setHomebrewModalType('feat');
+                                  setEditingHomebrewItem(customEntity);
+                                  setIsHomebrewModalOpen(true);
+                                }
+                              }}
+                              className="p-1 rounded text-slate-400 hover:text-amber-300 hover:bg-surface-50"
+                              title="Edit Feat"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => deleteCustomFeat(ft.id)}
+                              className="p-1 rounded text-slate-400 hover:text-red-400 hover:bg-surface-50"
+                              title="Delete Feat"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
+                    {ft.bonusSpells && ft.bonusSpells.length > 0 && (
+                      <div className="text-[10px] text-amber-400 font-mono flex items-center space-x-1">
+                        <span>✨ Spells: {ft.bonusSpells.join(', ')}</span>
+                      </div>
+                    )}
                     <p className="text-[11px] text-slate-400 line-clamp-2 leading-tight">
                       {ft.summary}
                     </p>
-                  </button>
-                ))}
-                {/* Custom Feats */}
-                {customFeatEntries.map((cft) => (
-                  <button
-                    key={cft.id}
-                    onClick={() => {
-                      setSelectedFeat(null);
-                      setSelectedChapterId(cft.id);
-                    }}
-                    className={`w-full text-left p-2.5 rounded-lg border transition-all space-y-1 ${
-                      selectedChapterId === cft.id
-                        ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-sm'
-                        : 'bg-surface-100/60 border-surface-border text-slate-300 hover:bg-surface-hover'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-serif text-xs font-bold text-amber-300 flex items-center space-x-1">
-                        <span>{cft.title}</span>
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-950/80 border border-amber-800 text-amber-300 font-mono">
-                        Custom
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-slate-400 line-clamp-2 leading-tight">
-                      {cft.tags && cft.tags.length > 0 ? cft.tags.join(' · ') : 'Custom Feat Entry'}
-                    </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             ) : activeCategory === 'masteries' ? (
@@ -1985,6 +2156,17 @@ export const HandbookView: React.FC = () => {
         }}
         onResetOverride={(chapId: string) => {
           resetChapterOverride(chapId);
+        }}
+      />
+
+      {/* Dynamic Homebrew Rule Creator & Editor Modal */}
+      <CustomHomebrewModal
+        isOpen={isHomebrewModalOpen}
+        initialType={homebrewModalType}
+        initialItem={editingHomebrewItem}
+        onClose={() => {
+          setIsHomebrewModalOpen(false);
+          setEditingHomebrewItem(null);
         }}
       />
     </div>

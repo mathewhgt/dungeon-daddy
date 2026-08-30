@@ -40,6 +40,13 @@ export interface PlayerEntity extends BaseEntity {
   };
   notes?: string;
   campaignId?: string;
+  currency?: {
+    cp: number;
+    sp: number;
+    ep: number;
+    gp: number;
+    pp: number;
+  };
   // 2024 Character Details
   background?: string;
   species?: string;

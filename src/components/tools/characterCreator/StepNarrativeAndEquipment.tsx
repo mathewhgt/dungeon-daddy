@@ -17,12 +17,13 @@ import {
   ArmorItem2024,
 } from '../../../types/characterCreator';
 import {
-  CLASSES_2024,
-  BACKGROUNDS_2024,
+  getMergedClasses,
+  getMergedBackgrounds,
   ARMOR_2024,
   ALIGNMENTS,
 } from '../../../services/characterCreationService';
 import { ImageUploadPicker } from '../../common/ImageUploadPicker';
+import { useApp } from '../../../context/AppContext';
 
 interface StepNarrativeAndEquipmentProps {
   state: CharacterCreationState;
@@ -45,8 +46,12 @@ const SAMPLE_NAMES: Record<string, string[]> = {
 };
 
 export const StepNarrativeAndEquipment: React.FC<StepNarrativeAndEquipmentProps> = ({ state, onChange }) => {
-  const selectedClass = CLASSES_2024.find((c) => c.id === state.selectedClassId) || CLASSES_2024[0];
-  const selectedBackground = BACKGROUNDS_2024.find((b) => b.id === state.selectedBackgroundId) || BACKGROUNDS_2024[0];
+  const { db } = useApp();
+  const classes = React.useMemo(() => getMergedClasses(db.customSubclasses || []), [db.customSubclasses]);
+  const backgrounds = React.useMemo(() => getMergedBackgrounds(db.customBackgrounds || []), [db.customBackgrounds]);
+
+  const selectedClass = classes.find((c) => c.id === state.selectedClassId) || classes[0];
+  const selectedBackground = backgrounds.find((b) => b.id === state.selectedBackgroundId) || backgrounds[0];
 
   const handleRandomizeName = () => {
     const list = SAMPLE_NAMES[selectedClass.id] || SAMPLE_NAMES.fighter;
@@ -128,6 +133,7 @@ export const StepNarrativeAndEquipment: React.FC<StepNarrativeAndEquipmentProps>
             tokenUrl={state.tokenUrl}
             onAvatarChange={(url: string) => onChange({ avatarUrl: url })}
             onTokenChange={(url: string) => onChange({ tokenUrl: url })}
+            onImagesChange={(urls) => onChange(urls)}
             entityName={state.characterName || 'Hero'}
             entityType="player"
           />

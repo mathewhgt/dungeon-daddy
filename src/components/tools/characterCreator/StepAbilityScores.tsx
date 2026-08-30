@@ -19,7 +19,7 @@ import {
   CharacterCreationState,
 } from '../../../types/characterCreator';
 import {
-  BACKGROUNDS_2024,
+  getMergedBackgrounds,
   STANDARD_ARRAY_SCORES,
   POINT_BUY_COSTS,
   calculateModifier,
@@ -27,6 +27,7 @@ import {
   calculatePointBuyRemaining,
   rollFullAbilitySet,
 } from '../../../services/characterCreationService';
+import { useApp } from '../../../context/AppContext';
 
 interface StepAbilityScoresProps {
   state: CharacterCreationState;
@@ -46,8 +47,10 @@ const ABILITY_LABELS: Record<AbilityKey, { name: string; desc: string }> = {
 const ABILITY_KEYS: AbilityKey[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 
 export const StepAbilityScores: React.FC<StepAbilityScoresProps> = ({ state, onChange }) => {
-  const selectedBackground = BACKGROUNDS_2024.find((b) => b.id === state.selectedBackgroundId) || BACKGROUNDS_2024[0];
-  const allowedBgStats = selectedBackground.allowedAbilities;
+  const { db } = useApp();
+  const backgrounds = React.useMemo(() => getMergedBackgrounds(db.customBackgrounds || []), [db.customBackgrounds]);
+  const selectedBackground = backgrounds.find((b) => b.id === state.selectedBackgroundId) || backgrounds[0];
+  const allowedBgStats = selectedBackground?.allowedAbilities || ['str', 'dex', 'con'];
 
   const [rollBreakdown, setRollBreakdown] = useState<{ rolls: number[]; dropped: number; total: number }[] | null>(null);
 
@@ -96,7 +99,7 @@ export const StepAbilityScores: React.FC<StepAbilityScoresProps> = ({ state, onC
     onChange({ baseScores: newScores });
   };
 
-  // Adjust Standard Array / Manual dropdown
+  // Adjust Standard Array / Manual dropdown / Rolling score swap
   const handleChangeBaseScore = (stat: AbilityKey, val: number) => {
     onChange({
       baseScores: {
@@ -104,6 +107,20 @@ export const StepAbilityScores: React.FC<StepAbilityScoresProps> = ({ state, onC
         [stat]: val,
       },
     });
+  };
+
+  const handleSwapBaseScore = (stat: AbilityKey, newVal: number) => {
+    const currentVal = state.baseScores[stat];
+    if (currentVal === newVal) return;
+
+    const currentScores = { ...state.baseScores };
+    // Find another stat that currently holds newVal and swap
+    const otherStat = ABILITY_KEYS.find((k) => k !== stat && currentScores[k] === newVal);
+    if (otherStat) {
+      currentScores[otherStat] = currentVal;
+    }
+    currentScores[stat] = newVal;
+    onChange({ baseScores: currentScores });
   };
 
   // Background Bonus Split Configuration
@@ -128,14 +145,37 @@ export const StepAbilityScores: React.FC<StepAbilityScoresProps> = ({ state, onC
     }
   };
 
-  const handleSetStatBonus = (stat: AbilityKey, bonusValue: number) => {
-    const current = { ...state.backgroundBonusAssignment };
-    if (bonusValue === 0) {
-      delete current[stat];
-    } else {
-      current[stat] = bonusValue;
+  const handleAssignBonus = (stat: AbilityKey, targetBonus: 2 | 1) => {
+    const currentBonus = state.backgroundBonusAssignment[stat] || 0;
+    if (currentBonus === targetBonus) return;
+
+    const assignment: Partial<Record<AbilityKey, number>> = { ...state.backgroundBonusAssignment };
+    const current2Stat = allowedBgStats.find((k) => assignment[k] === 2);
+    const current1Stat = allowedBgStats.find((k) => assignment[k] === 1);
+
+    if (targetBonus === 2) {
+      if (stat === current1Stat) {
+        // Swap 2 and 1
+        assignment[stat] = 2;
+        if (current2Stat) assignment[current2Stat] = 1;
+      } else {
+        // This stat gets 2; previous 2-holder is cleared; 1-holder stays intact
+        assignment[stat] = 2;
+        if (current2Stat && current2Stat !== stat) delete assignment[current2Stat];
+      }
+    } else if (targetBonus === 1) {
+      if (stat === current2Stat) {
+        // Swap 1 and 2
+        assignment[stat] = 1;
+        if (current1Stat) assignment[current1Stat] = 2;
+      } else {
+        // This stat gets 1; previous 1-holder is cleared; 2-holder stays intact
+        assignment[stat] = 1;
+        if (current1Stat && current1Stat !== stat) delete assignment[current1Stat];
+      }
     }
-    onChange({ backgroundBonusAssignment: current });
+
+    onChange({ backgroundBonusAssignment: assignment });
   };
 
   return (
@@ -330,10 +370,26 @@ export const StepAbilityScores: React.FC<StepAbilityScoresProps> = ({ state, onC
                     </div>
                   )}
 
+                  {state.abilityMethod === 'rolling' && (
+                    <select
+                      value={base}
+                      onChange={(e) => handleSwapBaseScore(key, parseInt(e.target.value, 10))}
+                      className="px-2 py-1 bg-surface-100 border border-amber-500/50 rounded text-xs font-mono text-amber-300 font-bold focus:outline-none focus:border-amber-400"
+                    >
+                      {ABILITY_KEYS.map((k) => state.baseScores[k])
+                        .sort((a, b) => b - a)
+                        .map((s, idx) => (
+                          <option key={idx} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                    </select>
+                  )}
+
                   {state.abilityMethod === 'standard' && (
                     <select
                       value={base}
-                      onChange={(e) => handleChangeBaseScore(key, parseInt(e.target.value, 10))}
+                      onChange={(e) => handleSwapBaseScore(key, parseInt(e.target.value, 10))}
                       className="px-2 py-1 bg-surface-100 border border-surface-border rounded text-xs font-mono text-slate-100 font-bold focus:outline-none focus:border-amber-500"
                     >
                       {STANDARD_ARRAY_SCORES.map((s) => (
@@ -431,16 +487,7 @@ export const StepAbilityScores: React.FC<StepAbilityScoresProps> = ({ state, onC
                   <div className="flex items-center space-x-1">
                     <button
                       type="button"
-                      onClick={() => {
-                        // Swap with other bonus
-                        const otherStats = allowedBgStats.filter((k) => k !== statKey);
-                        onChange({
-                          backgroundBonusAssignment: {
-                            [statKey]: 2,
-                            [otherStats[0]]: 1,
-                          },
-                        });
-                      }}
+                      onClick={() => handleAssignBonus(statKey, 2)}
                       className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
                         currentBonus === 2
                           ? 'bg-amber-500 text-slate-950'
@@ -451,15 +498,7 @@ export const StepAbilityScores: React.FC<StepAbilityScoresProps> = ({ state, onC
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const otherStats = allowedBgStats.filter((k) => k !== statKey);
-                        onChange({
-                          backgroundBonusAssignment: {
-                            [statKey]: 1,
-                            [otherStats[0]]: 2,
-                          },
-                        });
-                      }}
+                      onClick={() => handleAssignBonus(statKey, 1)}
                       className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
                         currentBonus === 1
                           ? 'bg-amber-500 text-slate-950'

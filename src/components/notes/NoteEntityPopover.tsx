@@ -12,7 +12,12 @@ import {
   Eye, 
   X, 
   Info,
-  Layers
+  Layers,
+  Image as ImageIcon,
+  ZoomIn,
+  Tv,
+  Compass,
+  Maximize2
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { MonsterStatBlock } from '../compendium/MonsterStatBlock';
@@ -30,8 +35,9 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
   isPlayerSafe = false,
   className = '' 
 }) => {
-  const { db } = useApp();
+  const { db, projectMediaToDisplay, showToast } = useApp();
   const [activeEntityModal, setActiveEntityModal] = useState<{ type: string; id: string } | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<{ src: string; alt?: string; caption?: string } | null>(null);
 
   // Helper to parse custom D&D Markdown blocks and compendium tags
   const renderFormattedMarkdown = (text: string) => {
@@ -55,6 +61,10 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
     let inTable = false;
     let tableBuffer: string[] = [];
 
+    let inColumns = false;
+    let columnsList: string[][] = [];
+    let currentColumnBuffer: string[] = [];
+
     const flushTable = (key: string) => {
       if (tableBuffer.length === 0) return;
       const rows = tableBuffer.map((line) =>
@@ -68,7 +78,7 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
       const dataRows = rows.slice(2); // skip header separator row | --- | --- |
 
       elements.push(
-        <div key={key} className="my-3 overflow-x-auto rounded-xl border border-surface-border bg-surface-100/90 shadow-md">
+        <div key={key} className="my-3 overflow-x-auto rounded-xl border border-surface-border bg-surface-100/90 shadow-md clear-both">
           <table className="w-full text-left text-xs sm:text-sm border-collapse">
             <thead>
               <tr className="bg-surface-50/90 border-b border-surface-border text-amber-300 font-serif font-bold">
@@ -93,8 +103,144 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
       inTable = false;
     };
 
+    const flushColumns = (key: string) => {
+      if (currentColumnBuffer.length > 0) {
+        columnsList.push(currentColumnBuffer);
+        currentColumnBuffer = [];
+      }
+      if (columnsList.length === 0) return;
+
+      elements.push(
+        <div key={key} className={`my-4 grid grid-cols-1 md:grid-cols-${Math.min(columnsList.length, 3)} gap-4 clear-both`}>
+          {columnsList.map((colLines, colIdx) => (
+            <div key={colIdx} className="p-4 rounded-xl bg-surface-100/40 border border-surface-border/80 space-y-2">
+              <NoteContentRenderer content={colLines.join('\n')} isPlayerSafe={isPlayerSafe} />
+            </div>
+          ))}
+        </div>
+      );
+      columnsList = [];
+      inColumns = false;
+    };
+
     lines.forEach((line, lineIdx) => {
       const trimmed = line.trim();
+
+      // Multi-column container
+      if (trimmed.toLowerCase() === ':::columns') {
+        inColumns = true;
+        columnsList = [];
+        currentColumnBuffer = [];
+        return;
+      }
+      if (inColumns) {
+        if (trimmed.toLowerCase() === ':::column') {
+          if (currentColumnBuffer.length > 0) {
+            columnsList.push(currentColumnBuffer);
+            currentColumnBuffer = [];
+          }
+          return;
+        }
+        if (trimmed === ':::') {
+          flushColumns(`cols-${lineIdx}`);
+          return;
+        }
+        currentColumnBuffer.push(line);
+        return;
+      }
+
+      // Single-line or block :::image
+      if (trimmed.toLowerCase().startsWith(':::image')) {
+        const srcMatch = line.match(/src=["']([^"']+)["']/i);
+        const altMatch = line.match(/alt=["']([^"']+)["']/i);
+        const alignMatch = line.match(/align=["']([^"']+)["']/i);
+        const sizeMatch = line.match(/size=["']([^"']+)["']/i);
+        const frameMatch = line.match(/frame=["']([^"']+)["']/i);
+        const captionMatch = line.match(/caption=["']([^"']+)["']/i);
+
+        const src = srcMatch ? srcMatch[1] : '';
+        const alt = altMatch ? altMatch[1] : 'Artwork';
+        const align = alignMatch ? alignMatch[1].toLowerCase() : 'left';
+        const size = sizeMatch ? sizeMatch[1] : '50%';
+        const frame = frameMatch ? frameMatch[1].toLowerCase() : 'gold';
+        const caption = captionMatch ? captionMatch[1] : '';
+
+        if (src) {
+          // Floating alignment styling
+          let alignClass = 'float-left mr-5 mb-4';
+          if (align === 'right') alignClass = 'float-right ml-5 mb-4';
+          else if (align === 'center') alignClass = 'mx-auto my-4 text-center block clear-both';
+          else if (align === 'column') alignClass = 'w-full my-2 block';
+
+          // Frame border styling
+          let frameClass = 'border-2 border-amber-500/70 shadow-lg shadow-amber-500/10';
+          if (frame === 'parchment') frameClass = 'border-2 border-[#a3794d] bg-[#1a140d] shadow-lg';
+          else if (frame === 'dark') frameClass = 'border border-surface-border bg-surface-100 shadow-md';
+          else if (frame === 'none') frameClass = 'border-0 shadow-sm';
+
+          elements.push(
+            <div
+              key={`img-block-${lineIdx}`}
+              className={`group transition-all ${alignClass}`}
+              style={{
+                width: align === 'center' ? (size === '100%' ? '100%' : size) : size,
+                maxWidth: '100%',
+              }}
+            >
+              <div className={`overflow-hidden rounded-xl relative ${frameClass}`}>
+                <img
+                  src={src}
+                  alt={alt}
+                  className="w-full h-auto object-cover rounded-lg cursor-pointer max-h-[70vh] transition-transform duration-300 group-hover:scale-[1.01]"
+                  onClick={() => setLightboxImage({ src, alt, caption })}
+                />
+
+                {/* Floating Image Actions (Lightbox & Project to TV) */}
+                <div className="absolute top-2 right-2 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 backdrop-blur-md rounded-lg p-1 border border-surface-border shadow-xl">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxImage({ src, alt, caption });
+                    }}
+                    className="p-1 rounded text-slate-300 hover:text-white hover:bg-surface-50 transition-colors"
+                    title="Fullscreen Lightbox"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      projectMediaToDisplay({
+                        id: `img-${Date.now()}`,
+                        type: 'image',
+                        title: alt,
+                        imageUrl: src,
+                        content: caption,
+                        badge: 'Artwork',
+                      });
+                      if (showToast) showToast(`Projected "${alt}" to TV!`);
+                    }}
+                    className="p-1 rounded text-sky-400 hover:text-sky-300 hover:bg-surface-50 transition-colors flex items-center space-x-0.5"
+                    title="Project this image to Player Display"
+                  >
+                    <Tv className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {caption && (
+                <p className="text-[11px] text-slate-400 italic text-center mt-1.5 leading-snug px-1">
+                  {renderInlineTags(caption)}
+                </p>
+              )}
+            </div>
+          );
+        }
+        return;
+      }
 
       // Read Aloud Block start / end
       if (trimmed.toLowerCase() === ':::read-aloud') {
@@ -107,7 +253,7 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
         elements.push(
           <div
             key={`read-aloud-${lineIdx}`}
-            className={`my-4 p-5 rounded-2xl bg-gradient-to-br from-[#1c1813] to-[#14100b] border-2 border-amber-500/60 shadow-xl text-amber-100/95 italic font-serif leading-relaxed select-text ${
+            className={`my-4 p-5 rounded-2xl bg-gradient-to-br from-[#1c1813] to-[#14100b] border-2 border-amber-500/60 shadow-xl text-amber-100/95 italic font-serif leading-relaxed select-text clear-both ${
               isPlayerSafe ? 'text-base sm:text-lg p-6' : 'text-sm'
             }`}
           >
@@ -139,7 +285,7 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
           elements.push(
             <div
               key={`dm-info-${lineIdx}`}
-              className="my-3.5 p-4 rounded-xl bg-blue-950/30 border border-blue-800/60 shadow-md text-blue-100 text-xs leading-relaxed select-text"
+              className="my-3.5 p-4 rounded-xl bg-blue-950/30 border border-blue-800/60 shadow-md text-blue-100 text-xs leading-relaxed select-text clear-both"
             >
               <div className="text-[10px] font-bold uppercase tracking-wider text-blue-400 mb-1 flex items-center space-x-1">
                 <Info className="w-3.5 h-3.5" />
@@ -170,7 +316,7 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
           elements.push(
             <details
               key={`secrets-${lineIdx}`}
-              className="my-3.5 p-3 rounded-xl bg-purple-950/30 border border-purple-800/60 text-purple-200 text-xs cursor-pointer group"
+              className="my-3.5 p-3 rounded-xl bg-purple-950/30 border border-purple-800/60 text-purple-200 text-xs cursor-pointer group clear-both"
             >
               <summary className="font-bold flex items-center space-x-1.5 text-purple-400 select-none">
                 <Lock className="w-3.5 h-3.5" />
@@ -206,13 +352,14 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
       if (inCheck && trimmed === ':::') {
         inCheck = false;
         elements.push(
-          <InteractiveDcCheckCard
-            key={`check-${lineIdx}`}
-            skill={checkMeta.skill}
-            dcStr={checkMeta.dc}
-            rawLines={checkBuffer}
-            renderInline={renderInlineTags}
-          />
+          <div key={`check-wrap-${lineIdx}`} className="clear-both my-3">
+            <InteractiveDcCheckCard
+              skill={checkMeta.skill}
+              dcStr={checkMeta.dc}
+              rawLines={checkBuffer}
+              renderInline={renderInlineTags}
+            />
+          </div>
         );
         return;
       }
@@ -223,9 +370,9 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
 
       // Callout Alerts (> [!WARNING], > [!TIP], > [!NOTE], etc)
       if (trimmed.startsWith('> [!WARNING]') || trimmed.startsWith('> [!CAUTION]')) {
-        const alertContent = trimmed.replace(/^>s*[!(WARNING|CAUTION)]s*/i, '');
+        const alertContent = trimmed.replace(/^>\s*\[!(WARNING|CAUTION)\]\s*/i, '');
         elements.push(
-          <div key={`alert-warn-${lineIdx}`} className="my-3 p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/50 text-amber-200 text-xs leading-relaxed flex items-start space-x-2.5 shadow-md">
+          <div key={`alert-warn-${lineIdx}`} className="my-3 p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/50 text-amber-200 text-xs leading-relaxed flex items-start space-x-2.5 shadow-md clear-both">
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <div className="flex-1 select-text">{renderInlineTags(alertContent || 'Warning')}</div>
           </div>
@@ -233,11 +380,57 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
         return;
       }
       if (trimmed.startsWith('> [!TIP]') || trimmed.startsWith('> [!NOTE]')) {
-        const alertContent = trimmed.replace(/^>s*[!(TIP|NOTE)]s*/i, '');
+        const alertContent = trimmed.replace(/^>\s*\[!(TIP|NOTE)\]\s*/i, '');
         elements.push(
-          <div key={`alert-tip-${lineIdx}`} className="my-3 p-3.5 rounded-xl bg-blue-950/40 border border-blue-500/50 text-blue-200 text-xs leading-relaxed flex items-start space-x-2.5 shadow-md">
+          <div key={`alert-tip-${lineIdx}`} className="my-3 p-3.5 rounded-xl bg-blue-950/40 border border-blue-500/50 text-blue-200 text-xs leading-relaxed flex items-start space-x-2.5 shadow-md clear-both">
             <Lightbulb className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
             <div className="flex-1 select-text">{renderInlineTags(alertContent || 'Tip')}</div>
+          </div>
+        );
+        return;
+      }
+
+      // Standard markdown images: ![alt](url)
+      const mdImgMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/);
+      if (mdImgMatch) {
+        const alt = mdImgMatch[1] || 'Image';
+        const src = mdImgMatch[2];
+        elements.push(
+          <div key={`md-img-${lineIdx}`} className="my-4 rounded-xl overflow-hidden border border-surface-border bg-surface-100 max-w-lg mx-auto shadow-lg group relative clear-both">
+            <img
+              src={src}
+              alt={alt}
+              className="w-full h-auto object-cover cursor-pointer"
+              onClick={() => setLightboxImage({ src, alt })}
+            />
+            {alt && <p className="p-2 text-[11px] text-slate-400 text-center italic border-t border-surface-border/50">{alt}</p>}
+            <div className="absolute top-2 right-2 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 backdrop-blur-md rounded-lg p-1 border border-surface-border shadow-xl">
+              <button
+                type="button"
+                onClick={() => setLightboxImage({ src, alt })}
+                className="p-1 rounded text-slate-300 hover:text-white"
+                title="Fullscreen Lightbox"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  projectMediaToDisplay({
+                    id: `img-${Date.now()}`,
+                    type: 'image',
+                    title: alt,
+                    imageUrl: src,
+                    badge: 'Artwork',
+                  });
+                  if (showToast) showToast(`Projected "${alt}" to TV!`);
+                }}
+                className="p-1 rounded text-sky-400 hover:text-sky-300"
+                title="Project to TV"
+              >
+                <Tv className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         );
         return;
@@ -252,10 +445,10 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
         flushTable(`tbl-${lineIdx}`);
       }
 
-      // Headers
+      // Headers (Clear floats so sections start cleanly)
       if (trimmed.startsWith('### ')) {
         elements.push(
-          <h3 key={lineIdx} className={`font-serif font-bold text-amber-400 mt-5 mb-1.5 ${isPlayerSafe ? 'text-xl' : 'text-base'}`}>
+          <h3 key={lineIdx} className={`font-serif font-bold text-amber-400 mt-5 mb-1.5 clear-both ${isPlayerSafe ? 'text-xl' : 'text-base'}`}>
             {renderInlineTags(trimmed.replace(/^###\s+/, ''))}
           </h3>
         );
@@ -263,7 +456,7 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
       }
       if (trimmed.startsWith('## ')) {
         elements.push(
-          <h2 key={lineIdx} className={`font-serif font-bold text-slate-100 mt-6 mb-2 border-b border-surface-border/80 pb-1.5 ${isPlayerSafe ? 'text-2xl' : 'text-lg'}`}>
+          <h2 key={lineIdx} className={`font-serif font-bold text-slate-100 mt-6 mb-2 border-b border-surface-border/80 pb-1.5 clear-both ${isPlayerSafe ? 'text-2xl' : 'text-lg'}`}>
             {renderInlineTags(trimmed.replace(/^##\s+/, ''))}
           </h2>
         );
@@ -271,7 +464,7 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
       }
       if (trimmed.startsWith('# ')) {
         elements.push(
-          <h1 key={lineIdx} className={`font-serif font-bold text-amber-500 mt-7 mb-3 ${isPlayerSafe ? 'text-3xl' : 'text-2xl'}`}>
+          <h1 key={lineIdx} className={`font-serif font-bold text-amber-500 mt-7 mb-3 clear-both ${isPlayerSafe ? 'text-3xl' : 'text-2xl'}`}>
             {renderInlineTags(trimmed.replace(/^#\s+/, ''))}
           </h1>
         );
@@ -290,7 +483,7 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
 
       // Blank line (Consistent vertical paragraph spacing)
       if (!trimmed) {
-        elements.push(<div key={lineIdx} className="h-4" />);
+        elements.push(<div key={lineIdx} className="h-2" />);
         return;
       }
 
@@ -303,6 +496,7 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
     });
 
     if (inTable) flushTable('tbl-end');
+    if (inColumns) flushColumns('cols-end');
 
     return elements;
   };
@@ -413,7 +607,7 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
 
   return (
     <div className={className}>
-      <div className="space-y-1">{renderFormattedMarkdown(content)}</div>
+      <div className="space-y-1 clearfix">{renderFormattedMarkdown(content)}</div>
 
       {/* Interactive Entity Statblock Modal */}
       {activeEntityModal && !isPlayerSafe && (
@@ -435,6 +629,71 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
             {monsterEntity && <MonsterStatBlock monster={monsterEntity} />}
             {spellEntity && <SpellCard spell={spellEntity} />}
             {itemEntity && <ItemCard item={itemEntity} />}
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen Artwork / Map Lightbox Modal */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fadeIn"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div
+            className="relative max-w-5xl max-h-[95vh] w-full flex flex-col items-center bg-[#10141d] border-2 border-amber-500/40 rounded-3xl p-4 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Toolbar */}
+            <div className="w-full flex items-center justify-between pb-3 border-b border-surface-border/80">
+              <div className="flex items-center space-x-2">
+                <ImageIcon className="w-4 h-4 text-pink-400" />
+                <span className="font-serif font-bold text-slate-100 text-sm">{lightboxImage.alt || 'Artwork View'}</span>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    projectMediaToDisplay({
+                      id: `img-${Date.now()}`,
+                      type: 'image',
+                      title: lightboxImage.alt || 'Artwork',
+                      imageUrl: lightboxImage.src,
+                      content: lightboxImage.caption,
+                      badge: 'Artwork',
+                    });
+                    if (showToast) showToast(`Projected "${lightboxImage.alt || 'Artwork'}" to TV!`);
+                  }}
+                  className="px-3 py-1.5 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700 text-sky-300 font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-colors shadow-md"
+                >
+                  <Tv className="w-4 h-4 text-sky-400" />
+                  <span>Project to TV</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLightboxImage(null)}
+                  className="p-1.5 rounded-xl bg-surface-50 hover:bg-surface-hover text-slate-300 hover:text-white transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* High-res Image Display */}
+            <div className="flex-1 w-full flex items-center justify-center p-3 overflow-hidden">
+              <img
+                src={lightboxImage.src}
+                alt={lightboxImage.alt || 'Artwork'}
+                className="max-h-[75vh] w-auto object-contain rounded-2xl shadow-2xl border border-surface-border/60"
+              />
+            </div>
+
+            {lightboxImage.caption && (
+              <p className="text-xs text-amber-200/90 font-serif italic text-center pt-2 border-t border-surface-border/60 w-full">
+                {lightboxImage.caption}
+              </p>
+            )}
           </div>
         </div>
       )}

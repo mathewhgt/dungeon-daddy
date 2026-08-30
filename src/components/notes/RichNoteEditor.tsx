@@ -18,11 +18,13 @@ import {
   Eye, 
   EyeOff,
   Columns,
-  Sparkles
+  Sparkles,
+  Image as ImageIcon
 } from 'lucide-react';
 import { CampaignNote, NoteCategory } from '../../types/campaign';
 import { CompendiumLinkModal } from './CompendiumLinkModal';
 import { DcCheckModal } from './DcCheckModal';
+import { NoteImageModal } from './NoteImageModal';
 import { SlashCommandMenu } from './SlashCommandMenu';
 import { Dices } from 'lucide-react';
 import { NoteContentRenderer } from './NoteEntityPopover';
@@ -50,6 +52,7 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
   const [viewMode, setViewMode] = useState<'split' | 'edit' | 'preview'>('split');
   const [isCompendiumLinkOpen, setIsCompendiumLinkOpen] = useState(false);
   const [isDcCheckModalOpen, setIsDcCheckModalOpen] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
   // Slash & Backslash Command State
   const [slashMenu, setSlashMenu] = useState<{
@@ -179,6 +182,8 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
       insertTextAtCursor('\n:::secrets\n', '\n:::\n');
     } else if (blockType === 'table') {
       insertTextAtCursor('\n| Column 1 | Column 2 | Column 3 |\n| --- | --- | --- |\n| Item 1 | Value | Details |\n| Item 2 | Value | Details |\n');
+    } else if (blockType === 'columns') {
+      insertTextAtCursor('\n:::columns\n:::column\n### Column 1\nWrite details or insert image here...\n:::\n:::column\n### Column 2\nWrite details or insert image here...\n:::\n:::\n');
     } else if (blockType === 'h1') {
       insertTextAtCursor('\n# ');
     } else if (blockType === 'h2') {
@@ -259,7 +264,7 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
               onChange={(e) => setCategory(e.target.value as any)}
               className="bg-surface-50 border border-surface-border text-xs text-slate-300 rounded-lg px-2.5 py-1.5 focus:border-amber-500"
             >
-              {['Session', 'Lore', 'NPC', 'Location', 'Quest', 'Handout'].map((cat) => (
+              {['Session', 'Lore', 'NPC', 'Location', 'Quest', 'Handout', 'Image', 'Map'].map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
@@ -384,6 +389,28 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
           >
             <Lock className="w-3.5 h-3.5" />
             <span>Secret Box</span>
+          </button>
+
+          {/* Insert Formatted Image Button */}
+          <button
+            type="button"
+            onClick={() => setIsImageModalOpen(true)}
+            className="px-2.5 py-1 rounded bg-gradient-to-r from-pink-950/70 to-purple-950/70 hover:from-pink-900 hover:to-purple-900 border border-pink-700/80 text-pink-300 text-xs font-bold flex items-center space-x-1 shadow-xs"
+            title="Upload or Link Image with Wrap, Column Alignment & Captions"
+          >
+            <ImageIcon className="w-3.5 h-3.5 text-pink-400" />
+            <span>Image / Art</span>
+          </button>
+
+          {/* Columns Layout Button */}
+          <button
+            type="button"
+            onClick={() => handleInsertBlock('columns')}
+            className="px-2.5 py-1 rounded bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-700 text-indigo-300 text-xs font-medium flex items-center space-x-1 shadow-xs"
+            title="Insert 2-Column Side-by-Side Layout"
+          >
+            <Columns className="w-3.5 h-3.5 text-indigo-400" />
+            <span>2-Column</span>
           </button>
 
           <button
@@ -528,6 +555,14 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
         />
       )}
 
+      {/* Note Image Modal */}
+      {isImageModalOpen && (
+        <NoteImageModal
+          onClose={() => setIsImageModalOpen(false)}
+          onInsert={(md) => insertTextAtCursor(md)}
+        />
+      )}
+
       {/* Floating Slash / Backslash Command Menu */}
       {slashMenu.isOpen && (
         <SlashCommandMenu
@@ -542,6 +577,10 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
           onOpenCompendiumModal={() => {
             setSlashMenu((prev) => ({ ...prev, isOpen: false }));
             setIsCompendiumLinkOpen(true);
+          }}
+          onOpenImageModal={() => {
+            setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+            setIsImageModalOpen(true);
           }}
           onInsertSnippet={handleInsertSnippetFromSlash}
         />

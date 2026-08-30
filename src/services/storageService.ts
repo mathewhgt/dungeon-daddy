@@ -14,7 +14,7 @@ import { SRD_ITEMS } from './srdData/itemsData';
 import { SRD_ROLL_TABLES } from './srdData/tablesData';
 import { STARTER_PLAYERS, STARTER_CAMPAIGN, STARTER_ENCOUNTERS } from './srdData/defaultParty';
 import { STARTER_MAPS } from './srdData/defaultMaps';
-import { CustomBookEntity, CustomChapterEntity, HandbookChapterOverride } from '../types/handbook';
+import { CustomBookEntity, CustomChapterEntity, HandbookChapterOverride, CustomSubclassEntity, CustomFeatEntity, CustomBackgroundEntity, CustomSpeciesEntity } from '../types/handbook';
 
 export const DEFAULT_CUSTOM_BOOK: CustomBookEntity = {
   id: 'custom-homebrew-rules',
@@ -55,6 +55,10 @@ export interface AppDatabase {
   customBooks: CustomBookEntity[];
   handbookOverrides: Record<string, HandbookChapterOverride>;
   handbookCustomEntries: CustomChapterEntity[];
+  customSubclasses?: CustomSubclassEntity[];
+  customFeats?: CustomFeatEntity[];
+  customBackgrounds?: CustomBackgroundEntity[];
+  customSpecies?: CustomSpeciesEntity[];
 }
 
 const STORAGE_KEY = 'dungeon_daddy_db_v1';
@@ -75,6 +79,10 @@ export function getInitialDatabase(): AppDatabase {
     customBooks: [DEFAULT_CUSTOM_BOOK],
     handbookOverrides: {},
     handbookCustomEntries: [],
+    customSubclasses: [],
+    customFeats: [],
+    customBackgrounds: [],
+    customSpecies: [],
   };
 }
 
@@ -263,6 +271,16 @@ export function loadDatabase(): AppDatabase {
       }
     }
 
+    // Merge SRD tables with existing tables
+    const existingTables: RollTableEntity[] = parsed.tables || [];
+    const existingTableIds = new Set(existingTables.map((t) => t.id));
+    const mergedTables = [...existingTables];
+    for (const srdTbl of SRD_ROLL_TABLES) {
+      if (!existingTableIds.has(srdTbl.id)) {
+        mergedTables.push(srdTbl);
+      }
+    }
+
     // Ensure all collections exist and templates are up to date
     const loadedDb: AppDatabase = {
       version: parsed.version || 1,
@@ -271,13 +289,17 @@ export function loadDatabase(): AppDatabase {
       spells: enrichedSpells,
       items: finalItems,
       players: parsed.players || STARTER_PLAYERS,
-      tables: parsed.tables || SRD_ROLL_TABLES,
+      tables: mergedTables.length > 0 ? mergedTables : SRD_ROLL_TABLES,
       campaigns: parsed.campaigns || [STARTER_CAMPAIGN],
       encounters: parsed.encounters || STARTER_ENCOUNTERS,
       maps: parsed.maps || STARTER_MAPS,
       customBooks: parsed.customBooks && parsed.customBooks.length > 0 ? parsed.customBooks : [DEFAULT_CUSTOM_BOOK],
       handbookOverrides: parsed.handbookOverrides || {},
       handbookCustomEntries: parsed.handbookCustomEntries || [],
+      customSubclasses: parsed.customSubclasses || [],
+      customFeats: parsed.customFeats || [],
+      customBackgrounds: parsed.customBackgrounds || [],
+      customSpecies: parsed.customSpecies || [],
     };
 
     saveDatabase(loadedDb);
@@ -304,6 +326,11 @@ export function saveDatabase(db: AppDatabase): void {
         monsters: (db.monsters || []).map((m) => ({
           ...m,
           avatarUrl: m.avatarUrl && m.avatarUrl.length > 200000 ? '' : m.avatarUrl,
+        })),
+        players: (db.players || []).map((p) => ({
+          ...p,
+          avatarUrl: p.avatarUrl && p.avatarUrl.length > 200000 ? '' : p.avatarUrl,
+          tokenUrl: p.tokenUrl && p.tokenUrl.length > 200000 ? '' : p.tokenUrl,
         })),
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(lightweightDb));
@@ -521,6 +548,10 @@ export function importFullDatabaseJson(jsonString: string): { success: boolean; 
       customBooks: parsed.customBooks && parsed.customBooks.length > 0 ? parsed.customBooks : [DEFAULT_CUSTOM_BOOK],
       handbookOverrides: parsed.handbookOverrides || {},
       handbookCustomEntries: parsed.handbookCustomEntries || [],
+      customSubclasses: parsed.customSubclasses || [],
+      customFeats: parsed.customFeats || [],
+      customBackgrounds: parsed.customBackgrounds || [],
+      customSpecies: parsed.customSpecies || [],
     };
     saveDatabase(merged);
     return { success: true, db: merged };

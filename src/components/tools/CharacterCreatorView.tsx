@@ -24,9 +24,10 @@ import {
   getInitialCharacterState,
   PRESET_ARCHETYPES,
   calculateDerivedStats,
-  CLASSES_2024,
-  BACKGROUNDS_2024,
-  SPECIES_2024,
+  getMergedClasses,
+  getMergedBackgrounds,
+  getMergedSpecies,
+  getMergedOriginFeats,
 } from '../../services/characterCreationService';
 import { StepClassSelector } from './characterCreator/StepClassSelector';
 import { StepOriginSelector } from './characterCreator/StepOriginSelector';
@@ -47,7 +48,19 @@ const STEPS = [
 ];
 
 export const CharacterCreatorView: React.FC = () => {
-  const { showToast, setActiveTab, setIsExternalDisplayModalOpen } = useApp();
+  const { db, showToast, setActiveTab, setIsExternalDisplayModalOpen } = useApp();
+
+  const customOpts = React.useMemo(() => ({
+    customSubclasses: db.customSubclasses || [],
+    customBackgrounds: db.customBackgrounds || [],
+    customSpecies: db.customSpecies || [],
+    customFeats: db.customFeats || [],
+  }), [db.customSubclasses, db.customBackgrounds, db.customSpecies, db.customFeats]);
+
+  const classes = React.useMemo(() => getMergedClasses(db.customSubclasses || []), [db.customSubclasses]);
+  const backgrounds = React.useMemo(() => getMergedBackgrounds(db.customBackgrounds || []), [db.customBackgrounds]);
+  const species = React.useMemo(() => getMergedSpecies(db.customSpecies || []), [db.customSpecies]);
+  const originFeats = React.useMemo(() => getMergedOriginFeats(db.customFeats || []), [db.customFeats]);
 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [characterState, setCharacterState] = useState<CharacterCreationState>(() => getInitialCharacterState());
@@ -57,14 +70,16 @@ export const CharacterCreatorView: React.FC = () => {
   });
 
   const handleUpdateState = (updates: Partial<CharacterCreationState>) => {
-    const updated = {
-      ...characterState,
-      ...updates,
-    };
-    setCharacterState(updated);
-    if (isCasting) {
-      playerSyncService.updateCharacterCreatorState(currentStep, updated);
-    }
+    setCharacterState((prev) => {
+      const updated = {
+        ...prev,
+        ...updates,
+      };
+      if (isCasting) {
+        playerSyncService.updateCharacterCreatorState(currentStep, updated);
+      }
+      return updated;
+    });
   };
 
   const handleStepChange = (newStep: number) => {
@@ -97,8 +112,8 @@ export const CharacterCreatorView: React.FC = () => {
   };
 
   const handleLoadPreset = (preset: typeof PRESET_ARCHETYPES[0]) => {
-    const bg = BACKGROUNDS_2024.find((b) => b.id === preset.backgroundId) || BACKGROUNDS_2024[0];
-    const cls = CLASSES_2024.find((c) => c.id === preset.classId) || CLASSES_2024[0];
+    const bg = backgrounds.find((b) => b.id === preset.backgroundId) || backgrounds[0];
+    const cls = classes.find((c) => c.id === preset.classId) || classes[0];
 
     handleUpdateState({
       characterName: preset.characterName,
@@ -119,10 +134,10 @@ export const CharacterCreatorView: React.FC = () => {
     showToast(`Loaded Preset: ${preset.name}`);
   };
 
-  const derived = calculateDerivedStats(characterState);
-  const currentClass = CLASSES_2024.find((c) => c.id === characterState.selectedClassId) || CLASSES_2024[0];
-  const currentSpecies = SPECIES_2024.find((s) => s.id === characterState.selectedSpeciesId) || SPECIES_2024[0];
-  const currentBg = BACKGROUNDS_2024.find((b) => b.id === characterState.selectedBackgroundId) || BACKGROUNDS_2024[0];
+  const derived = calculateDerivedStats(characterState, customOpts);
+  const currentClass = classes.find((c) => c.id === characterState.selectedClassId) || classes[0];
+  const currentSpecies = species.find((s) => s.id === characterState.selectedSpeciesId) || species[0];
+  const currentBg = backgrounds.find((b) => b.id === characterState.selectedBackgroundId) || backgrounds[0];
 
   return (
     <div className="h-full flex flex-col bg-[#090d12] overflow-hidden select-none">

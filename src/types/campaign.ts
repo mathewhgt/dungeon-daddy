@@ -1,6 +1,6 @@
 import { BaseEntity } from './entity';
 
-export type NoteCategory = 'Session' | 'Lore' | 'NPC' | 'Location' | 'Quest' | 'Handout' | 'Folder';
+export type NoteCategory = 'Session' | 'Lore' | 'NPC' | 'Location' | 'Quest' | 'Handout' | 'Image' | 'Map' | 'Folder';
 
 export interface NoteCategoryStyle {
   label: NoteCategory;
@@ -74,6 +74,26 @@ export const NOTE_CATEGORIES: Record<NoteCategory, NoteCategoryStyle> = {
     selectedBgClass: 'bg-teal-500/20',
     selectedBorderClass: 'border-teal-500',
   },
+  Image: {
+    label: 'Image',
+    iconName: 'Image',
+    colorHex: '#f472b6',
+    textClass: 'text-pink-400',
+    bgClass: 'bg-pink-950/40',
+    borderClass: 'border-pink-700/60',
+    selectedBgClass: 'bg-pink-500/20',
+    selectedBorderClass: 'border-pink-500',
+  },
+  Map: {
+    label: 'Map',
+    iconName: 'Compass',
+    colorHex: '#06b6d4',
+    textClass: 'text-cyan-400',
+    bgClass: 'bg-cyan-950/40',
+    borderClass: 'border-cyan-700/60',
+    selectedBgClass: 'bg-cyan-500/20',
+    selectedBorderClass: 'border-cyan-500',
+  },
   Folder: {
     label: 'Folder',
     iconName: 'Folder',
@@ -97,6 +117,9 @@ export interface CampaignNote extends BaseEntity {
   order?: number;
   icon?: string;
   color?: string;
+  imageUrl?: string; // High-res image/artwork/map URL or base64
+  caption?: string; // Image caption or subtitle
+  aspectRatio?: string;
 }
 
 export interface CampaignEntity extends BaseEntity {

@@ -15,7 +15,9 @@ import {
   Lightbulb, 
   Minus,
   Sparkles,
-  Link2
+  Link2,
+  Image as ImageIcon,
+  Columns
 } from 'lucide-react';
 
 export interface SlashCommandItem {
@@ -35,6 +37,7 @@ interface SlashCommandMenuProps {
   onSelect: (item: SlashCommandItem) => void;
   onOpenDcModal: () => void;
   onOpenCompendiumModal: () => void;
+  onOpenImageModal?: () => void;
   onInsertSnippet: (prefix: string, suffix?: string) => void;
 }
 
@@ -44,12 +47,31 @@ export const SlashCommandMenu: React.FC<SlashCommandMenuProps> = ({
   onClose,
   onOpenDcModal,
   onOpenCompendiumModal,
+  onOpenImageModal,
   onInsertSnippet,
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const items: SlashCommandItem[] = [
+    {
+      id: 'image',
+      title: 'Formatted Image / Artwork',
+      subtitle: 'Embed image with text wrap (left/right), alignment, size & caption',
+      icon: ImageIcon,
+      color: 'text-pink-400 bg-pink-900/30 border-pink-700/40',
+      category: 'blocks',
+      action: () => (onOpenImageModal ? onOpenImageModal() : onInsertSnippet('\n:::image src="https://example.com/art.png" align="left" size="50%" caption="Artwork caption"\n:::\n')),
+    },
+    {
+      id: 'columns',
+      title: '2-Column Side-by-Side Layout',
+      subtitle: 'Split text and artwork into clean multi-column layout',
+      icon: Columns,
+      color: 'text-indigo-400 bg-indigo-900/30 border-indigo-700/40',
+      category: 'format',
+      action: () => onInsertSnippet('\n:::columns\n:::column\n### Column 1\nWrite left column content here...\n:::\n:::column\n### Column 2\nWrite right column content here...\n:::\n:::\n'),
+    },
     {
       id: 'dc-check',
       title: 'DC Ability / Skill Check',

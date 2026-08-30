@@ -1,6 +1,8 @@
 import { RollTableEntity } from '../../types/rollTable';
+import { GENERAL_LOOT_ROLL_TABLE } from './generalLootData';
 
 export const SRD_ROLL_TABLES: RollTableEntity[] = [
+  GENERAL_LOOT_ROLL_TABLE,
   {
     id: 'srd-table-tavern-rumors',
     type: 'rollTable',

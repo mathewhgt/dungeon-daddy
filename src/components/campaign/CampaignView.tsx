@@ -476,7 +476,7 @@ export const CampaignView: React.FC = () => {
                     onChange={(e) => setNewNoteCategory(e.target.value)}
                     className="w-full bg-surface-100 border border-surface-border rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:border-amber-500"
                   >
-                    {['Session', 'Lore', 'NPC', 'Location', 'Quest', 'Handout'].map((cat) => (
+                    {['Session', 'Lore', 'NPC', 'Location', 'Quest', 'Handout', 'Image', 'Map'].map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>

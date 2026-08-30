@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { NpcGeneratorView } from './NpcGeneratorView';
 import { CharacterCreatorView } from './CharacterCreatorView';
+import { LootGeneratorView } from './LootGeneratorView';
 import { useApp } from '../../context/AppContext';
 
 export type ToolSubTab = 'character-creator' | 'npc-generator' | 'loot' | 'tavern' | 'weather';
@@ -33,7 +34,7 @@ export const ToolsView: React.FC = () => {
               <span>DM Tools & Generators</span>
             </h1>
             <p className="text-xs text-slate-400">
-              Character creation wizards, procedural content generators, and world-building utilities.
+              Procedural loot generators, character wizards, and world-building utilities.
             </p>
           </div>
         </div>
@@ -65,15 +66,27 @@ export const ToolsView: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setActiveTool('loot')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-serif font-bold transition-all flex items-center space-x-1.5 ${
+              activeTool === 'loot'
+                ? 'bg-amber-600 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Coins className="w-4 h-4 text-yellow-400" />
+            <span>Loot Generator</span>
+          </button>
+
+          <button
             onClick={() => {
               setActiveTab('compendium');
               setCompendiumSubTab('tables');
             }}
             className="px-3 py-1.5 rounded-lg text-xs font-serif font-bold text-slate-400 hover:text-slate-200 transition-all flex items-center space-x-1.5"
-            title="Open Compendium Roll Tables for Loot and Trinkets"
+            title="Open Compendium Roll Tables for Custom Tables"
           >
-            <Coins className="w-4 h-4 text-yellow-400" />
-            <span>Loot & Roll Tables</span>
+            <Dices className="w-4 h-4 text-purple-400" />
+            <span>Roll Tables</span>
           </button>
 
           <button
@@ -91,6 +104,7 @@ export const ToolsView: React.FC = () => {
       <div className="flex-1 overflow-hidden">
         {activeTool === 'character-creator' && <CharacterCreatorView />}
         {activeTool === 'npc-generator' && <NpcGeneratorView />}
+        {activeTool === 'loot' && <LootGeneratorView />}
       </div>
     </div>
   );

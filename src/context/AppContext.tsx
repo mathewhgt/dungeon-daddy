@@ -29,7 +29,7 @@ import {
 import { DEFAULT_TEMPLATES } from '../services/templateEngine';
 import { playerSyncService } from '../services/playerSyncService';
 import { ProjectedMedia } from '../types/display';
-import { CustomBookEntity, CustomChapterEntity, HandbookTarget, HandbookChapterOverride } from '../types/handbook';
+import { CustomBookEntity, CustomChapterEntity, HandbookTarget, HandbookChapterOverride, CustomSubclassEntity, CustomFeatEntity, CustomBackgroundEntity, CustomSpeciesEntity } from '../types/handbook';
 
 export type MainNavTab = 'compendium' | 'party' | 'notes' | 'encounters' | 'combat' | 'maps' | 'templates' | 'tools' | 'handbook' | 'dice' | 'settings';
 
@@ -103,6 +103,14 @@ interface AppContextType {
   deleteCustomChapter: (bookId: string, chapterId: string) => void;
   saveChapterOverride: (chapterId: string, override: HandbookChapterOverride) => void;
   resetChapterOverride: (chapterId: string) => void;
+  saveCustomSubclass: (subclass: CustomSubclassEntity) => void;
+  deleteCustomSubclass: (id: string) => void;
+  saveCustomFeat: (feat: CustomFeatEntity) => void;
+  deleteCustomFeat: (id: string) => void;
+  saveCustomBackground: (bg: CustomBackgroundEntity) => void;
+  deleteCustomBackground: (id: string) => void;
+  saveCustomSpecies: (species: CustomSpeciesEntity) => void;
+  deleteCustomSpecies: (id: string) => void;
   bulkAddEntities: (type: EntityType, entities: BaseEntity[]) => void;
 
   // Battle Maps & VTT
@@ -829,6 +837,78 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     });
     showToast('Reset section to official default');
+  }, [showToast]);
+
+  const saveCustomSubclass = useCallback((subclass: CustomSubclassEntity) => {
+    setDb((prev) => {
+      const list = prev.customSubclasses || [];
+      const idx = list.findIndex((s) => s.id === subclass.id);
+      const updated = idx >= 0 ? list.map((s) => (s.id === subclass.id ? subclass : s)) : [...list, subclass];
+      return { ...prev, customSubclasses: updated };
+    });
+    showToast(`Saved subclass ${subclass.name}`);
+  }, [showToast]);
+
+  const deleteCustomSubclass = useCallback((id: string) => {
+    setDb((prev) => ({
+      ...prev,
+      customSubclasses: (prev.customSubclasses || []).filter((s) => s.id !== id),
+    }));
+    showToast('Deleted custom subclass');
+  }, [showToast]);
+
+  const saveCustomFeat = useCallback((feat: CustomFeatEntity) => {
+    setDb((prev) => {
+      const list = prev.customFeats || [];
+      const idx = list.findIndex((f) => f.id === feat.id);
+      const updated = idx >= 0 ? list.map((f) => (f.id === feat.id ? feat : f)) : [...list, feat];
+      return { ...prev, customFeats: updated };
+    });
+    showToast(`Saved feat ${feat.name}`);
+  }, [showToast]);
+
+  const deleteCustomFeat = useCallback((id: string) => {
+    setDb((prev) => ({
+      ...prev,
+      customFeats: (prev.customFeats || []).filter((f) => f.id !== id),
+    }));
+    showToast('Deleted custom feat');
+  }, [showToast]);
+
+  const saveCustomBackground = useCallback((bg: CustomBackgroundEntity) => {
+    setDb((prev) => {
+      const list = prev.customBackgrounds || [];
+      const idx = list.findIndex((b) => b.id === bg.id);
+      const updated = idx >= 0 ? list.map((b) => (b.id === bg.id ? bg : b)) : [...list, bg];
+      return { ...prev, customBackgrounds: updated };
+    });
+    showToast(`Saved background ${bg.name}`);
+  }, [showToast]);
+
+  const deleteCustomBackground = useCallback((id: string) => {
+    setDb((prev) => ({
+      ...prev,
+      customBackgrounds: (prev.customBackgrounds || []).filter((b) => b.id !== id),
+    }));
+    showToast('Deleted custom background');
+  }, [showToast]);
+
+  const saveCustomSpecies = useCallback((species: CustomSpeciesEntity) => {
+    setDb((prev) => {
+      const list = prev.customSpecies || [];
+      const idx = list.findIndex((s) => s.id === species.id);
+      const updated = idx >= 0 ? list.map((s) => (s.id === species.id ? species : s)) : [...list, species];
+      return { ...prev, customSpecies: updated };
+    });
+    showToast(`Saved species ${species.name}`);
+  }, [showToast]);
+
+  const deleteCustomSpecies = useCallback((id: string) => {
+    setDb((prev) => ({
+      ...prev,
+      customSpecies: (prev.customSpecies || []).filter((s) => s.id !== id),
+    }));
+    showToast('Deleted custom species');
   }, [showToast]);
 
   const [activeMapId, setActiveMapId] = useState<string | null>(db.maps?.[0]?.id || null);
@@ -1939,6 +2019,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteCustomChapter,
         saveChapterOverride,
         resetChapterOverride,
+        saveCustomSubclass,
+        deleteCustomSubclass,
+        saveCustomFeat,
+        deleteCustomFeat,
+        saveCustomBackground,
+        deleteCustomBackground,
+        saveCustomSpecies,
+        deleteCustomSpecies,
         bulkAddEntities,
         activeMapId,
         setActiveMapId,
