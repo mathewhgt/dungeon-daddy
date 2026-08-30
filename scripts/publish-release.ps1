@@ -1,9 +1,9 @@
 # -----------------------------------------------------------------------------
-# Dungeon Daddy — Automated Release & Git Push Script
+# Dungeon Daddy — Automated Release, Version Increment & Git Push Script
 # 
 # Usage:
 #   npm run ship
-#   npm run ship -- -Message "Added token animations and fixed dice tray"
+#   npm run ship -- -Message "Updated combat tracker and token spells"
 #   powershell -ExecutionPolicy Bypass -File scripts/publish-release.ps1 -Message "My update"
 # -----------------------------------------------------------------------------
 
@@ -33,8 +33,8 @@ try {
     Write-Host "  Dungeon Daddy - Automated Version Bump and Release" -ForegroundColor Magenta
     Write-Host "==========================================================" -ForegroundColor Magenta
 
-    # 1. Read and parse package.json version
-    Write-Step "Step 1: Reading and incrementing version in package.json..."
+    # 1. Determine highest current version from git tags and package.json
+    Write-Step "Step 1: Finding latest version and incrementing patch by +0.0.1..."
     $rootDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
     $pkgPath = Join-Path $rootDir "package.json"
     if (-not (Test-Path $pkgPath)) {
@@ -44,21 +44,44 @@ try {
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     $pkgRaw = [System.IO.File]::ReadAllText($pkgPath, [System.Text.Encoding]::UTF8)
     $pkgJson = $pkgRaw | ConvertFrom-Json
-    $oldVersion = $pkgJson.version
 
-    if (-not $oldVersion) {
-        $oldVersion = "1.0.0"
+    $major = 1
+    $minor = 0
+    $highestPatch = -1
+
+    # Check package.json version
+    if ($pkgJson.version -and $pkgJson.version -match '^(\d+)\.(\d+)\.(\d+)$') {
+        $major = [int]$matches[1]
+        $minor = [int]$matches[2]
+        $highestPatch = [int]$matches[3]
     }
 
-    # Split version e.g. "1.0.3" -> Major: 1, Minor: 0, Patch: 3
-    $vParts = $oldVersion.Split('.')
-    $major = [int]$vParts[0]
-    $minor = [int]$vParts[1]
-    $patch = [int]$vParts[2]
-    $newPatch = $patch + 1
+    # Check all existing git tags
+    try {
+        $existingTags = git tag -l "v*"
+        foreach ($t in $existingTags) {
+            if ($t -match '^v?(\d+)\.(\d+)\.(\d+)$') {
+                $tMajor = [int]$matches[1]
+                $tMinor = [int]$matches[2]
+                $tPatch = [int]$matches[3]
+                if ($tMajor -ge $major -and $tMinor -ge $minor -and $tPatch -gt $highestPatch) {
+                    $major = $tMajor
+                    $minor = $tMinor
+                    $highestPatch = $tPatch
+                }
+            }
+        }
+    } catch {}
+
+    if ($highestPatch -lt 0) {
+        $highestPatch = 0
+    }
+
+    $oldVersion = "$major.$minor.$highestPatch"
+    $newPatch = $highestPatch + 1
     $newVersion = "$major.$minor.$newPatch"
 
-    # Replace version string reliably without adding BOM
+    # Replace version string in package.json without BOM
     $updatedPkgRaw = [regex]::Replace($pkgRaw, '"version":\s*"[^"]+"', ('"version": "' + $newVersion + '"'))
     [System.IO.File]::WriteAllText($pkgPath, $updatedPkgRaw, $utf8NoBom)
 
@@ -77,7 +100,6 @@ try {
     Write-Step "Step 2: Building frontend assets and packaging Windows binaries..."
     Set-Location $rootDir
 
-    # Run build and packaging
     npm run package
     if ($LASTEXITCODE -ne 0) {
         throw "Packaging failed with exit code $LASTEXITCODE"
@@ -102,7 +124,7 @@ try {
 
     git commit -m $commitMsg
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "Warning: No additional changes to commit or commit returned $LASTEXITCODE" -ForegroundColor Yellow
+        Write-Host "Notice: Working tree clean or already committed." -ForegroundColor Yellow
     } else {
         Write-Success "Committed: $commitMsg"
     }
@@ -124,7 +146,7 @@ try {
         throw "git push origin main failed with exit code $LASTEXITCODE"
     }
 
-    git push origin $tagName
+    git push origin "refs/tags/$tagName:refs/tags/$tagName" --force
     if ($LASTEXITCODE -ne 0) {
         throw "git push origin $tagName failed with exit code $LASTEXITCODE"
     }
@@ -135,7 +157,8 @@ try {
     Write-Host "==========================================================" -ForegroundColor Green
     Write-Host "• Package files: release/Dungeon Daddy Setup $newVersion.exe" -ForegroundColor White
     Write-Host "• Git Tag: $tagName" -ForegroundColor White
-    Write-Host "• All devices can now click 'Check for Updates' to install v$newVersion!" -ForegroundColor Cyan
+    Write-Host "• GitHub Action: Building cloud release at https://github.com/mathewhgt/dungeon-daddy/actions" -ForegroundColor Cyan
+    Write-Host "• All devices can now click 'Check for Updates' to install v$newVersion!" -ForegroundColor Green
 }
 catch {
     $err = $_.ToString()
