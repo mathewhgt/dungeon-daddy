@@ -146,7 +146,7 @@ try {
         throw "git push origin main failed with exit code $LASTEXITCODE"
     }
 
-    git push origin "refs/tags/$tagName:refs/tags/$tagName" --force
+    git push origin $tagName --force
     if ($LASTEXITCODE -ne 0) {
         throw "git push origin $tagName failed with exit code $LASTEXITCODE"
     }
