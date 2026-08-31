@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { CampaignNote, NoteCategory, NOTE_CATEGORIES } from '../../types/campaign';
-import { RichNoteEditor } from './RichNoteEditor';
+import { LiveNoteEditor } from './LiveNoteEditor';
 import { NoteContentRenderer } from './NoteEntityPopover';
 import { UploadMediaModal } from './UploadMediaModal';
 import { BookmarkButton } from '../bookmarks/BookmarkButton';
@@ -230,14 +230,23 @@ export const NotesView: React.FC = () => {
   };
 
   const handleStartCreateNote = (folderId?: string | null) => {
-    setEditingNote({
+    if (!campaign) return;
+    const newNote: CampaignNote = {
+      id: `note-${Date.now()}`,
+      type: 'campaignNote',
+      campaignId: campaign.id,
       name: 'New Adventure Note',
       category: 'Session',
       parentId: folderId || null,
       content: ':::read-aloud\nEnter description here...\n:::\n\n### Overview\nWrite details here...',
       isPlayerVisible: false,
-    });
-    setIsEditing(true);
+      isFolder: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    saveCampaignNote(campaign.id, newNote);
+    setSelectedNoteId(newNote.id);
+    setIsEditing(false);
   };
 
   const handleStartUploadMedia = (folderId?: string | null) => {
@@ -256,8 +265,7 @@ export const NotesView: React.FC = () => {
     if (note.imageUrl || note.category === 'Image' || note.category === 'Map') {
       handleStartEditMedia(note);
     } else {
-      setEditingNote(note);
-      setIsEditing(true);
+      setSelectedNoteId(note.id);
     }
   };
 
@@ -575,20 +583,9 @@ export const NotesView: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: Rich Reader / Standalone Media Viewer / Rich Editor / Folder Hub */}
+        {/* Right: Live In-Place Note Editor / Standalone Media Viewer / Folder Hub */}
         <div className="flex-1 overflow-hidden flex flex-col bg-[#090d12]">
-          {isEditing ? (
-            <RichNoteEditor
-              initialNote={editingNote || undefined}
-              campaignId={campaign.id}
-              folders={folders}
-              onSave={handleSaveNote}
-              onCancel={() => {
-                setIsEditing(false);
-                setEditingNote(null);
-              }}
-            />
-          ) : selectedNote ? (
+          {selectedNote ? (
             selectedNote.isFolder ? (
               /* Folder Hub Overview Page */
               <div className="flex-1 overflow-y-auto p-8 flex flex-col justify-between">
@@ -969,128 +966,16 @@ export const NotesView: React.FC = () => {
                 </div>
               </div>
             ) : (
-              /* Standard Note Reader */
-              <div className="flex-1 overflow-y-auto p-6 flex flex-col justify-between">
-                <div className="max-w-3xl mx-auto w-full space-y-5">
-                  {/* Breadcrumbs Trail */}
-                  <div className="flex items-center space-x-1.5 text-xs text-slate-400 font-medium overflow-x-auto pb-1">
-                    <Home className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span>/</span>
-                    {breadcrumbs.map((crumb, idx) => (
-                      <React.Fragment key={crumb.id}>
-                        <span className={idx === breadcrumbs.length - 1 ? 'text-amber-400 font-bold' : 'hover:text-slate-200'}>
-                          {crumb.name}
-                        </span>
-                        {idx < breadcrumbs.length - 1 && <span>/</span>}
-                      </React.Fragment>
-                    ))}
-                  </div>
-
-                  {/* Note Header & Badges */}
-                  <div className="flex items-start justify-between border-b border-surface-border pb-4">
-                    <div>
-                      <div className="flex items-center space-x-3 flex-wrap gap-y-2">
-                        <h1 className="font-serif text-2xl font-bold text-slate-100">{selectedNote.name}</h1>
-                        {(() => {
-                          const CatIcon = getNoteCategoryIcon(selectedNote.category);
-                          const catStyle = getNoteCategoryStyle(selectedNote.category);
-                          return (
-                            <span className={`px-2.5 py-0.5 rounded-full border text-xs font-bold flex items-center space-x-1.5 ${catStyle.badgeBg}`}>
-                              <CatIcon className={`w-3.5 h-3.5 ${catStyle.iconClass}`} />
-                              <span>{selectedNote.category}</span>
-                            </span>
-                          );
-                        })()}
-
-                        <button
-                          type="button"
-                          onClick={() => handleToggleNotePlayerVisible(selectedNote)}
-                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold flex items-center space-x-1 transition-colors border ${
-                            selectedNote.isPlayerVisible
-                              ? 'bg-emerald-950 text-emerald-300 border-emerald-800 hover:bg-emerald-900'
-                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:bg-slate-800 hover:text-slate-200'
-                          }`}
-                          title="Click to toggle player visibility"
-                        >
-                          {selectedNote.isPlayerVisible ? (
-                            <>
-                              <Eye className="w-3 h-3 text-emerald-400" />
-                              <span>Player Handout (Visible)</span>
-                            </>
-                          ) : (
-                            <>
-                              <EyeOff className="w-3 h-3 text-slate-400" />
-                              <span>GM Secret (Hidden)</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                      <div className="text-xs text-slate-400 mt-1">
-                        Last edited: {new Date(selectedNote.updatedAt).toLocaleDateString()} at {new Date(selectedNote.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center space-x-1.5">
-                      <BookmarkButton
-                        type={selectedNote.category === 'NPC' ? 'npc' : (selectedNote.category === 'Lore' ? 'lore' : 'note')}
-                        targetId={selectedNote.id}
-                        title={selectedNote.name}
-                        subtitle={`${selectedNote.category || 'Note'} • ${campaign?.name || 'Campaign'}`}
-                        category={selectedNote.category || 'Note'}
-                        imageUrl={selectedNote.imageUrl}
-                        campaignId={campaign?.id}
-                        showText
-                        size="md"
-                      />
-
-                      <button
-                        onClick={() => {
-                          projectMediaToDisplay({
-                            id: selectedNote.id,
-                            type: 'note',
-                            title: selectedNote.name,
-                            content: selectedNote.content,
-                            badge: selectedNote.category,
-                          });
-                          if (showToast) showToast(`Projected "${selectedNote.name}" to TV!`);
-                        }}
-                        className="px-3 py-1.5 bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/80 text-indigo-300 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition-colors shadow-sm"
-                        title="Project note full-screen to Player Display"
-                      >
-                        <Tv className="w-3.5 h-3.5 text-sky-400" />
-                        <span>Project to TV</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleStartEditNote(selectedNote)}
-                        className="px-3 py-1.5 bg-surface-50 hover:bg-surface-hover border border-surface-border text-slate-200 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition-colors"
-                      >
-                        <Edit3 className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Edit Note</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          if (confirm(`Delete note "${selectedNote.name}"?`)) {
-                            if (campaign) deleteCampaignNote(campaign.id, selectedNote.id);
-                            setSelectedNoteId(null);
-                          }
-                        }}
-                        className="p-1.5 bg-surface-50 hover:bg-red-950 text-slate-400 hover:text-red-400 border border-surface-border rounded-lg transition-colors"
-                        title="Delete note"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Formatted Markdown Body with D&D Blocks, Formatted Images & Mentions */}
-                  <div className="text-slate-200 select-text">
-                    <NoteContentRenderer content={selectedNote.content} />
-                  </div>
-                </div>
-              </div>
+              /* Unified Live In-Place Markdown Note Editor */
+              <LiveNoteEditor
+                note={selectedNote}
+                campaignId={campaign.id}
+                folders={folders}
+                onDeleteNote={(noteId) => {
+                  deleteCampaignNote(campaign.id, noteId);
+                  setSelectedNoteId(null);
+                }}
+              />
             )
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-slate-500 text-xs space-y-2">
