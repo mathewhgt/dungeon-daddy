@@ -132,6 +132,7 @@ export const InteractiveDcCheckCard: React.FC<InteractiveDcCheckCardProps> = ({
       <div className="p-3.5 space-y-2 text-xs">
         {rawLines.map((line, idx) => {
           const str = typeof line === 'string' ? line : String(line || '');
+          if (!str.trim()) return <div key={idx} className="h-1" />;
           const { isHighlighted, isSuccess } = getOutcomeStatus(str);
           const isFail = str.toLowerCase().includes('failure') || str.includes('<');
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Map as MapIcon, 
   Users, 
@@ -24,7 +24,10 @@ import {
   FolderOpen, 
   Square, 
   X, 
-  FileText
+  FileText,
+  Locate,
+  Crosshair,
+  Skull
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { playerSyncService } from '../../services/playerSyncService';
@@ -42,28 +45,43 @@ import { ConcentrationCheckModal, ConcentrationCheckData } from './Concentration
 import { SetConcentrationModal } from './SetConcentrationModal';
 import { PinEditorModal } from './PinEditorModal';
 import { MonsterStatBlock } from '../compendium/MonsterStatBlock';
+import { PlayerStatBlock } from '../compendium/PlayerStatBlock';
+import { EntityEditorModal } from '../compendium/EntityEditorModal';
 import { MapToken, BattleMapEntity, MapPin as MapPinType } from '../../types/map';
 import { MonsterEntity } from '../../types/monster';
 import { PlayerEntity } from '../../types/player';
 import { SpellEntity } from '../../types/spell';
 import { TokenAvatar } from '../common/TokenAvatar';
 import { fuzzyMatchMultiple } from '../../utils/searchUtils';
+import { getMonsterBadge, getNextMonsterName } from '../../utils/monsterUtils';
+import { DeathSavesTracker } from '../common/DeathSavesTracker';
+import { EditInitiativeModal } from '../common/EditInitiativeModal';
+import { Combatant } from '../../types/combat';
 
 export const VttView: React.FC = () => {
   const { 
     db, 
     activeMapId, 
-    setActiveMapId,
+    setActiveMapId, 
+    mapViewports, 
+    setMapViewport, 
     saveMap, 
     combatState, 
     setCombatantConcentration,
     startCombatFromMapTokens,
+    addTokenToCombat,
+    removeTokenFromCombat,
+    setInitiative,
     endCombat,
     addTokenToMap, 
     deleteMapToken,
     updateMapToken,
     modifyCombatantHp,
+    setCombatantDeathSaves,
+    rollDeathSave,
     activeCampaignId,
+    savePlayer,
+    saveMonster,
     showToast 
   } = useApp();
 
@@ -85,6 +103,62 @@ export const VttView: React.FC = () => {
   const [pendingSpellToCast, setPendingSpellToCast] = useState<SpellEntity | null>(null);
   const [fogBrushRadius, setFogBrushRadius] = useState<number>(50);
   const [fogResetTrigger, setFogResetTrigger] = useState<number>(0);
+  const [pingTarget, setPingTarget] = useState<{ x: number; y: number; id: string; color?: string } | null>(null);
+
+  // Live selected token reference to prevent stale state across rapid HP adjustments
+  const liveSelectedToken = selectedToken
+    ? currentMap?.tokens.find((t) => t.id === selectedToken.id) || selectedToken
+    : null;
+
+  // Ping / Focus Token on Map (centers once and auto-clears after 3.5s)
+  const handlePingToken = (tokenOrCombatant: MapToken | typeof combatState.combatants[0]) => {
+    if (!currentMap) return;
+    let targetToken: MapToken | undefined;
+    if ('size' in tokenOrCombatant && 'x' in tokenOrCombatant) {
+      targetToken = tokenOrCombatant as MapToken;
+    } else {
+      const c = tokenOrCombatant as typeof combatState.combatants[0];
+      targetToken = currentMap.tokens.find(
+        (t) => t.combatantId === c.id || t.id === c.id || (c.id && c.id.includes(t.id)) || (t.name === c.name && t.entityId === c.entityId)
+      );
+    }
+    if (targetToken) {
+      setSelectedToken(targetToken);
+      const pingId = `ping-${Date.now()}`;
+      const pingData = {
+        x: targetToken.x,
+        y: targetToken.y,
+        id: pingId,
+        color: targetToken.isPlayer ? '#38bdf8' : '#f59e0b',
+      };
+      setPingTarget(pingData);
+      playerSyncService.broadcastPing(pingData);
+
+      setTimeout(() => {
+        setPingTarget((prev) => (prev && prev.id === pingId ? null : prev));
+        playerSyncService.broadcastPing(null);
+      }, 3500);
+      showToast(`📍 Focused on ${targetToken.name}`);
+    } else {
+      showToast(`${tokenOrCombatant.name} is not placed on this battle map.`);
+    }
+  };
+
+  const handleViewportChange = useCallback((vp: { x: number; y: number; zoom: number }) => {
+    if (currentMap?.id) {
+      setMapViewport(currentMap.id, vp);
+    }
+  }, [currentMap?.id, setMapViewport]);
+
+  // Adjust selected token HP directly with immediate reactivity
+  const handleAdjustSelectedTokenHp = (delta: number) => {
+    if (!liveSelectedToken || !currentMap) return;
+    const maxHp = liveSelectedToken.maxHp || 10;
+    const curHp = liveSelectedToken.currentHp ?? maxHp;
+    const newHp = Math.max(0, Math.min(maxHp, curHp + delta));
+    updateMapToken(currentMap.id, liveSelectedToken.id, { currentHp: newHp });
+    setSelectedToken((prev) => (prev && prev.id === liveSelectedToken.id ? { ...prev, currentHp: newHp } : prev));
+  };
 
   // Sync selected token with Player Display for line of sight
   useEffect(() => {
@@ -99,6 +173,8 @@ export const VttView: React.FC = () => {
   const [concentrationPrompt, setConcentrationPrompt] = useState<ConcentrationCheckData | null>(null);
   const [pinModalData, setPinModalData] = useState<Partial<MapPinType> | null>(null);
   const [inspectedEntity, setInspectedEntity] = useState<{ entity: MonsterEntity | PlayerEntity; type: 'monster' | 'player' } | null>(null);
+  const [isEditingInspected, setIsEditingInspected] = useState(false);
+  const [initiativeModalCombatant, setInitiativeModalCombatant] = useState<Combatant | null>(null);
 
   if (!currentMap) {
     return (
@@ -180,10 +256,25 @@ export const VttView: React.FC = () => {
     const tokenSize = sizeCategory === 'large' ? 2 : sizeCategory === 'huge' ? 3 : sizeCategory === 'gargantuan' ? 4 : 1;
     const coords = getSpawnCoords(tokenSize);
 
+    // Compute sequential name and badge (e.g. "Goblin 1" -> G1, "Goblin 2" -> G2)
+    const { name: monsterName, badge } = getNextMonsterName(monster.name, currentMap.tokens);
+
+    // If there's an existing unnumbered token for this monster, upgrade it to "Monster 1"
+    const unnumbered = currentMap.tokens.find(
+      (t) => !t.isPlayer && t.entityId === monster.id && t.name.trim().toLowerCase() === monster.name.trim().toLowerCase()
+    );
+    if (unnumbered) {
+      updateMapToken(currentMap.id, unnumbered.id, {
+        name: `${monster.name} 1`,
+        badge: getMonsterBadge(`${monster.name} 1`) || undefined,
+      });
+    }
+
     const newToken: MapToken = {
       id: `tok-monster-${monster.id}-${Date.now()}`,
       entityId: monster.id,
-      name: monster.name,
+      name: monsterName,
+      badge,
       tokenUrl: monster.tokenUrl,
       avatarUrl: monster.avatarUrl,
       isPlayer: false,
@@ -220,6 +311,7 @@ export const VttView: React.FC = () => {
       combatantId: combatant.id,
       entityId: combatant.entityId,
       name: combatant.name,
+      badge: combatant.badge || getMonsterBadge(combatant) || undefined,
       tokenUrl: combatant.tokenUrl,
       avatarUrl: combatant.avatarUrl,
       isPlayer: combatant.isPlayer,
@@ -507,21 +599,48 @@ export const VttView: React.FC = () => {
                   ) : (
                     combatState.combatants.map((c, idx) => {
                       const isTurn = idx === combatState.currentTurnIndex;
-                      const mapToken = currentMap.tokens.find((t) => t.combatantId === c.id || t.entityId === c.entityId);
+                      const mapToken = currentMap.tokens.find((t) => t.combatantId === c.id || t.id === c.id || (c.id && c.id.includes(t.id)));
+                      const cBadge = !c.isPlayer ? (c.badge || getMonsterBadge(c, combatState.combatants)) : null;
+                      
+                      let combatantDisplayName = c.name;
+                      if (!c.isPlayer && cBadge) {
+                        const hasTrailingNumber = /\d+$/.test(c.name.trim());
+                        if (!hasTrailingNumber) {
+                          const badgeNum = cBadge.replace(/^[A-Z]+/i, '');
+                          if (badgeNum) {
+                            combatantDisplayName = `${c.name} ${badgeNum}`;
+                          }
+                        }
+                      }
+
+                      const isDeadMonster = !c.isPlayer && (c.currentHp <= 0 || c.defeated);
+                      const isDownPlayer = c.isPlayer && c.currentHp <= 0;
 
                       return (
                         <div
                           key={c.id}
-                          className={`p-2.5 rounded-xl border space-y-1.5 transition-colors ${
-                            isTurn
+                          onClick={() => {
+                            if (mapToken) setSelectedToken(mapToken);
+                          }}
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            handlePingToken(c);
+                          }}
+                          className={`p-2.5 rounded-xl border space-y-1.5 transition-colors cursor-pointer ${
+                            isDeadMonster
+                              ? 'opacity-40 grayscale bg-black/40 border-slate-800'
+                              : isDownPlayer
+                              ? 'bg-red-950/20 border-red-800/80 shadow-sm'
+                              : isTurn
                               ? 'bg-amber-950/50 border-amber-500/80 shadow-md ring-1 ring-amber-500/40'
                               : 'bg-surface-100 hover:bg-surface-hover border-surface-border'
                           }`}
+                          title="Click to select · Double-click to ping on map"
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-2">
                               <TokenAvatar
-                                name={c.name}
+                                name={combatantDisplayName}
                                 imageUrl={c.avatarUrl}
                                 tokenUrl={c.tokenUrl}
                                 type={c.isPlayer ? 'player' : 'monster'}
@@ -529,20 +648,59 @@ export const VttView: React.FC = () => {
                               />
                               <div>
                                 <div className="font-serif font-bold text-xs text-slate-100 flex items-center space-x-1.5">
-                                  <span>{c.name}</span>
-                                  {isTurn && (
+                                  <span className={isDeadMonster ? 'line-through text-slate-500' : ''}>{combatantDisplayName}</span>
+                                  {cBadge && (
+                                    <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-black bg-pink-950/80 border border-pink-500/60 text-pink-300 shadow-xs">
+                                      {cBadge}
+                                    </span>
+                                  )}
+                                  {isDeadMonster ? (
+                                    <span className="px-1 py-0.2 rounded bg-red-950 border border-red-700 text-red-300 font-bold text-[9px] flex items-center space-x-0.5">
+                                      <Skull className="w-2.5 h-2.5" />
+                                      <span>DEAD</span>
+                                    </span>
+                                  ) : isTurn ? (
                                     <span className="px-1 py-0.2 rounded bg-amber-500 text-slate-950 font-bold text-[9px]">
                                       TURN
                                     </span>
-                                  )}
+                                  ) : null}
                                 </div>
-                                <div className="text-[10px] text-slate-400 font-mono">
-                                  Init {c.initiative} · HP {c.currentHp}/{c.maxHp} · AC {c.armorClass}
+                                <div className="text-[10px] text-slate-400 font-mono flex items-center space-x-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setInitiativeModalCombatant(c);
+                                    }}
+                                    className="text-amber-300 hover:text-amber-200 font-bold hover:underline transition-colors cursor-pointer"
+                                    title="Click to edit initiative"
+                                  >
+                                    Init {c.initiative}
+                                  </button>
+                                  <span>·</span>
+                                  <span className={isDownPlayer ? 'text-red-400 font-bold' : ''}>HP {c.currentHp}/{c.maxHp}</span>
+                                  <span>·</span>
+                                  <span>AC {c.armorClass}</span>
                                 </div>
                               </div>
                             </div>
 
                             <div className="flex items-center space-x-1">
+                              {/* Ping / Locate Button */}
+                              {mapToken && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePingToken(c);
+                                  }}
+                                  className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface-50 border border-surface-border text-slate-400 hover:text-amber-300 hover:border-amber-500/40 transition-colors flex items-center space-x-1"
+                                  title="Ping & Center on Map (Double-click card)"
+                                >
+                                  <Locate className="w-3 h-3 text-amber-400" />
+                                  <span>Ping</span>
+                                </button>
+                              )}
+
                               {/* Quick [C] Concentration Button */}
                               <button
                                 onClick={() => {
@@ -588,6 +746,19 @@ export const VttView: React.FC = () => {
                               )}
                             </div>
                           </div>
+
+                          {/* Death Saving Throws for Downed Players */}
+                          {isDownPlayer && (
+                            <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+                              <DeathSavesTracker
+                                saves={c.deathSaves}
+                                compact={!isTurn}
+                                onChange={(saves) => setCombatantDeathSaves(c.id, saves)}
+                                onRoll={() => rollDeathSave(c.id)}
+                                lastHealAmount={c.lastHealAmount}
+                              />
+                            </div>
+                          )}
 
                           {/* Active Conditions & Concentration Badges */}
                           {(c.conditions.length > 0 || c.concentratingOn) && (
@@ -818,7 +989,10 @@ export const VttView: React.FC = () => {
             map={currentMap}
             activeTool={activeTool}
             onSelectToken={setSelectedToken}
-            selectedToken={selectedToken}
+            selectedToken={liveSelectedToken}
+            pingLocation={pingTarget}
+            initialViewport={mapViewports[currentMap.id]}
+            onViewportChange={handleViewportChange}
             onOpenPinModal={(pin) => setPinModalData(pin || {})}
             pendingSpell={pendingSpellToCast}
             onSpellPlaced={() => {
@@ -862,6 +1036,8 @@ export const VttView: React.FC = () => {
           {combatState.isActive && (
             <VttCombatHud
               onEndCombat={endCombat}
+              onPingCombatant={(c) => handlePingToken(c)}
+              onOpenInitiativeModal={(c) => setInitiativeModalCombatant(c)}
               onOpenStatblock={(cId) => {
                 const combatant = combatState.combatants.find((c) => c.id === cId);
                 if (combatant) {
@@ -878,36 +1054,43 @@ export const VttView: React.FC = () => {
           )}
 
           {/* Selected Token Inspector HUD */}
-          {selectedToken && (
+          {liveSelectedToken && (
             <div className="absolute bottom-5 right-5 z-30 bg-[#121720]/90 backdrop-blur-md border border-surface-border p-4 rounded-2xl shadow-2xl space-y-3 w-64 animate-scaleUp">
               <div className="flex items-center justify-between border-b border-surface-border pb-2">
                 <div className="flex items-center space-x-2">
                   <TokenAvatar
-                    name={selectedToken.name}
-                    imageUrl={selectedToken.avatarUrl}
-                    tokenUrl={selectedToken.tokenUrl}
-                    type={selectedToken.isPlayer ? 'player' : 'monster'}
+                    name={liveSelectedToken.name}
+                    imageUrl={liveSelectedToken.avatarUrl}
+                    tokenUrl={liveSelectedToken.tokenUrl}
+                    type={liveSelectedToken.isPlayer ? 'player' : 'monster'}
                     size="sm"
                   />
                   <div>
-                    <h4 className="font-serif font-bold text-sm text-slate-100">{selectedToken.name}</h4>
+                    <h4 className="font-serif font-bold text-sm text-slate-100">{liveSelectedToken.name}</h4>
                     <span className="text-[10px] text-amber-400 font-mono">
-                      AC {selectedToken.armorClass || 10} · Sight {selectedToken.senses.normalSight}ft / Darkvision {selectedToken.senses.darkvision}ft
+                      AC {liveSelectedToken.armorClass || 10} · Sight {liveSelectedToken.senses.normalSight}ft / Darkvision {liveSelectedToken.senses.darkvision}ft
                     </span>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-1">
                   <button
-                    onClick={() => handleOpenStatblockForToken(selectedToken)}
-                    className="p-1 text-slate-400 hover:text-blue-400 rounded"
+                    onClick={() => handlePingToken(liveSelectedToken)}
+                    className="p-1 text-slate-400 hover:text-amber-400 rounded transition-colors"
+                    title="Ping token on battle map"
+                  >
+                    <Locate className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleOpenStatblockForToken(liveSelectedToken)}
+                    className="p-1 text-slate-400 hover:text-blue-400 rounded transition-colors"
                     title="View 5e statblock"
                   >
                     <FileText className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => deleteMapToken(currentMap.id, selectedToken.id)}
-                    className="p-1 text-slate-400 hover:text-red-400 rounded"
+                    onClick={() => deleteMapToken(currentMap.id, liveSelectedToken.id)}
+                    className="p-1 text-slate-400 hover:text-red-400 rounded transition-colors"
                     title="Remove token from map"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -916,52 +1099,36 @@ export const VttView: React.FC = () => {
               </div>
 
               {/* HP Adjustment */}
-              {selectedToken.maxHp && (
+              {liveSelectedToken.maxHp && (
                 <div className="space-y-1 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400">Hit Points</span>
                     <span className="font-mono font-bold text-slate-200">
-                      {selectedToken.currentHp} / {selectedToken.maxHp}
+                      {liveSelectedToken.currentHp ?? liveSelectedToken.maxHp} / {liveSelectedToken.maxHp}
                     </span>
                   </div>
                   <div className="flex space-x-1">
                     <button
-                      onClick={() =>
-                        updateMapToken(currentMap.id, selectedToken.id, {
-                          currentHp: Math.max(0, (selectedToken.currentHp || 0) - 5),
-                        })
-                      }
-                      className="flex-1 py-1 rounded bg-surface-50 hover:bg-red-950 text-red-300 border border-surface-border font-mono font-bold text-[11px]"
+                      onClick={() => handleAdjustSelectedTokenHp(-5)}
+                      className="flex-1 py-1 rounded bg-surface-50 hover:bg-red-950 text-red-300 border border-surface-border font-mono font-bold text-[11px] transition-colors"
                     >
                       -5
                     </button>
                     <button
-                      onClick={() =>
-                        updateMapToken(currentMap.id, selectedToken.id, {
-                          currentHp: Math.max(0, (selectedToken.currentHp || 0) - 1),
-                        })
-                      }
-                      className="flex-1 py-1 rounded bg-surface-50 hover:bg-red-950 text-red-300 border border-surface-border font-mono font-bold text-[11px]"
+                      onClick={() => handleAdjustSelectedTokenHp(-1)}
+                      className="flex-1 py-1 rounded bg-surface-50 hover:bg-red-950 text-red-300 border border-surface-border font-mono font-bold text-[11px] transition-colors"
                     >
                       -1
                     </button>
                     <button
-                      onClick={() =>
-                        updateMapToken(currentMap.id, selectedToken.id, {
-                          currentHp: Math.min(selectedToken.maxHp || 10, (selectedToken.currentHp || 0) + 1),
-                        })
-                      }
-                      className="flex-1 py-1 rounded bg-surface-50 hover:bg-emerald-950 text-emerald-300 border border-surface-border font-mono font-bold text-[11px]"
+                      onClick={() => handleAdjustSelectedTokenHp(1)}
+                      className="flex-1 py-1 rounded bg-surface-50 hover:bg-emerald-950 text-emerald-300 border border-surface-border font-mono font-bold text-[11px] transition-colors"
                     >
                       +1
                     </button>
                     <button
-                      onClick={() =>
-                        updateMapToken(currentMap.id, selectedToken.id, {
-                          currentHp: Math.min(selectedToken.maxHp || 10, (selectedToken.currentHp || 0) + 5),
-                        })
-                      }
-                      className="flex-1 py-1 rounded bg-surface-50 hover:bg-emerald-950 text-emerald-300 border border-surface-border font-mono font-bold text-[11px]"
+                      onClick={() => handleAdjustSelectedTokenHp(5)}
+                      className="flex-1 py-1 rounded bg-surface-50 hover:bg-emerald-950 text-emerald-300 border border-surface-border font-mono font-bold text-[11px] transition-colors"
                     >
                       +5
                     </button>
@@ -1011,23 +1178,49 @@ export const VttView: React.FC = () => {
       )}
 
       {/* Token Right-Click Context Menu */}
-      {contextMenu && (
-        <TokenContextMenu
-          token={contextMenu.token}
-          position={contextMenu.position}
-          onClose={() => setContextMenu(null)}
-          onOpenStatblock={handleOpenStatblockForToken}
-          onOpenHpModal={(tok) => setHpModalToken(tok)}
-          onOpenConditionsModal={(tok) => setConditionsModalToken(tok)}
-          onToggleConcentration={(tok) => setConcentrationModalToken(tok)}
-          onToggleHideToken={(tok) => {
-            const nextHide = !tok.hiddenFromPlayers;
-            updateMapToken(currentMap.id, tok.id, { hiddenFromPlayers: nextHide });
-            showToast(nextHide ? `Hidden ${tok.name} from players` : `Revealed ${tok.name} to players`);
-          }}
-          onDeleteToken={(tok) => deleteMapToken(currentMap.id, tok.id)}
-        />
-      )}
+      {contextMenu && (() => {
+        const liveMenuToken = currentMap.tokens.find((t) => t.id === contextMenu.token.id) || contextMenu.token;
+        const tokenIsInCombat = combatState.isActive && combatState.combatants.some(
+          (c) => c.id === liveMenuToken.combatantId || c.id === liveMenuToken.id || (c.id && c.id.includes(liveMenuToken.id))
+        );
+
+        return (
+          <TokenContextMenu
+            token={liveMenuToken}
+            position={contextMenu.position}
+            onClose={() => setContextMenu(null)}
+            isCombatActive={combatState.isActive}
+            isInCombat={tokenIsInCombat}
+            onAddToCombat={(tok) => {
+              if (combatState.isActive) {
+                addTokenToCombat(currentMap.id, tok.id);
+              } else {
+                setIsStartCombatModalOpen(true);
+              }
+            }}
+            onRemoveFromCombat={(tok) => {
+              removeTokenFromCombat(tok.combatantId || tok.id);
+            }}
+            onOpenInitiativeModal={(tok) => {
+              const c = combatState.combatants.find(
+                (cb) => cb.id === tok.combatantId || cb.id === tok.id || (cb.id && cb.id.includes(tok.id))
+              );
+              if (c) setInitiativeModalCombatant(c);
+              else showToast('Combatant not found in active combat.');
+            }}
+            onOpenStatblock={handleOpenStatblockForToken}
+            onOpenHpModal={(tok) => setHpModalToken(tok)}
+            onOpenConditionsModal={(tok) => setConditionsModalToken(tok)}
+            onToggleConcentration={(tok) => setConcentrationModalToken(tok)}
+            onToggleHideToken={(tok) => {
+              const nextHide = !tok.hiddenFromPlayers;
+              updateMapToken(currentMap.id, tok.id, { hiddenFromPlayers: nextHide });
+              showToast(nextHide ? `Hidden ${tok.name} from players` : `Revealed ${tok.name} to players`);
+            }}
+            onDeleteToken={(tok) => deleteMapToken(currentMap.id, tok.id)}
+          />
+        );
+      })()}
 
       {/* Set Concentration Modal */}
       {concentrationModalToken && (
@@ -1072,9 +1265,27 @@ export const VttView: React.FC = () => {
           onApplyHp={({ currentHp, tempHp }) => {
             const prevHp = hpModalToken.currentHp || 0;
             updateMapToken(currentMap.id, hpModalToken.id, { currentHp, tempHp });
-            if (hpModalToken.combatantId) {
-              const diff = currentHp - prevHp;
-              if (diff !== 0) modifyCombatantHp(hpModalToken.combatantId, diff, false);
+            setSelectedToken((prev) => (prev && prev.id === hpModalToken.id ? { ...prev, currentHp, tempHp } : prev));
+            setHpModalToken((prev) => (prev && prev.id === hpModalToken.id ? { ...prev, currentHp, tempHp } : prev));
+
+            // If active in combat, also ensure combatState is updated
+            if (combatState.isActive) {
+              const matchedCombatant = combatState.combatants.find(
+                (c) => c.id === hpModalToken.combatantId ||
+                  c.id === hpModalToken.id ||
+                  c.id.includes(hpModalToken.id) ||
+                  hpModalToken.id.includes(c.id) ||
+                  (c.entityId === hpModalToken.entityId && c.name === hpModalToken.name)
+              );
+              if (matchedCombatant) {
+                const diff = currentHp - prevHp;
+                if (diff !== 0) {
+                  modifyCombatantHp(matchedCombatant.id, diff, false);
+                }
+                if (tempHp !== undefined && tempHp !== matchedCombatant.tempHp) {
+                  modifyCombatantHp(matchedCombatant.id, tempHp, true);
+                }
+              }
             }
             checkConcentrationOnDamage(hpModalToken, prevHp, currentHp);
             showToast(`Updated HP for ${hpModalToken.name}`);
@@ -1116,14 +1327,14 @@ export const VttView: React.FC = () => {
         />
       )}
 
-      {/* 5e Statblock Slide-Over / Popover */}
+      {/* 5e Statblock / Reference Sheet Slide-Over */}
       {inspectedEntity && (
         <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/70 backdrop-blur-sm p-4 select-none animate-fadeIn">
-          <div className="w-full max-w-xl h-full bg-[#121720] border border-surface-border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slideLeft">
+          <div className="w-full max-w-2xl lg:max-w-3xl h-full bg-[#121720] border border-surface-border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slideLeft">
             <div className="p-3 border-b border-surface-border flex items-center justify-between bg-surface-100/50">
               <span className="font-serif font-bold text-sm text-slate-100 flex items-center space-x-2">
                 <FileText className="w-4 h-4 text-blue-400" />
-                <span>5e Statblock: {inspectedEntity.entity.name}</span>
+                <span>5e Reference Sheet: {inspectedEntity.entity.name}</span>
               </span>
               <button
                 onClick={() => setInspectedEntity(null)}
@@ -1135,61 +1346,51 @@ export const VttView: React.FC = () => {
 
             <div className="flex-1 overflow-y-auto p-4">
               {inspectedEntity.type === 'monster' ? (
-                <MonsterStatBlock monster={inspectedEntity.entity as MonsterEntity} />
+                <MonsterStatBlock
+                  monster={db.monsters.find((m) => m.id === inspectedEntity.entity.id) || (inspectedEntity.entity as MonsterEntity)}
+                  onEdit={() => setIsEditingInspected(true)}
+                />
               ) : (
-                <div className="p-4 space-y-4 text-slate-200">
-                  <div className="flex items-center space-x-4 border-b border-surface-border pb-4">
-                    <TokenAvatar
-                      name={inspectedEntity.entity.name}
-                      imageUrl={inspectedEntity.entity.avatarUrl}
-                      tokenUrl={inspectedEntity.entity.tokenUrl}
-                      type="player"
-                      size="lg"
-                    />
-                    <div>
-                      <h2 className="font-serif font-bold text-xl text-amber-400">{inspectedEntity.entity.name}</h2>
-                      <div className="text-xs text-slate-400">
-                        Level {(inspectedEntity.entity as PlayerEntity).level} {(inspectedEntity.entity as PlayerEntity).race} {(inspectedEntity.entity as PlayerEntity).characterClass}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    <div className="p-2 bg-surface-50 rounded-xl border border-surface-border">
-                      <div className="text-slate-400 uppercase text-[10px] font-bold">Armor Class</div>
-                      <div className="font-bold font-mono text-base text-slate-100">{(inspectedEntity.entity as PlayerEntity).armorClass}</div>
-                    </div>
-                    <div className="p-2 bg-surface-50 rounded-xl border border-surface-border">
-                      <div className="text-slate-400 uppercase text-[10px] font-bold">Hit Points</div>
-                      <div className="font-bold font-mono text-base text-emerald-400">
-                        {(inspectedEntity.entity as PlayerEntity).currentHp} / {(inspectedEntity.entity as PlayerEntity).maxHp}
-                      </div>
-                    </div>
-                    <div className="p-2 bg-surface-50 rounded-xl border border-surface-border">
-                      <div className="text-slate-400 uppercase text-[10px] font-bold">Speed</div>
-                      <div className="font-bold font-mono text-base text-slate-100">{(inspectedEntity.entity as PlayerEntity).speed || '30 ft.'}</div>
-                    </div>
-                  </div>
-
-                  {/* Ability Scores */}
-                  <div className="grid grid-cols-6 gap-1.5 text-center text-xs">
-                    {['str', 'dex', 'con', 'int', 'wis', 'cha'].map((stat) => {
-                      const val = (inspectedEntity.entity as PlayerEntity).abilities[stat as keyof typeof inspectedEntity.entity.abilities] || 10;
-                      const mod = Math.floor((val - 10) / 2);
-                      return (
-                        <div key={stat} className="p-2 bg-surface-50 rounded-xl border border-surface-border">
-                          <div className="text-slate-400 uppercase text-[9px] font-bold">{stat}</div>
-                          <div className="font-bold text-slate-100">{val}</div>
-                          <div className="text-[10px] text-amber-400 font-mono">{mod >= 0 ? `+${mod}` : mod}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                <PlayerStatBlock
+                  player={db.players.find((p) => p.id === inspectedEntity.entity.id) || (inspectedEntity.entity as PlayerEntity)}
+                  onEdit={() => setIsEditingInspected(true)}
+                />
               )}
             </div>
           </div>
         </div>
+      )}
+
+      {/* Inspected Entity Editor Modal */}
+      {isEditingInspected && inspectedEntity && (
+        <EntityEditorModal
+          type={inspectedEntity.type}
+          initialData={
+            inspectedEntity.type === 'monster'
+              ? db.monsters.find((m) => m.id === inspectedEntity.entity.id) || inspectedEntity.entity
+              : db.players.find((p) => p.id === inspectedEntity.entity.id) || inspectedEntity.entity
+          }
+          onClose={() => setIsEditingInspected(false)}
+          onSave={(updatedData) => {
+            if (inspectedEntity.type === 'monster') {
+              saveMonster(updatedData);
+            } else {
+              savePlayer(updatedData);
+            }
+          }}
+        />
+      )}
+
+      {/* Manual Initiative Edit Modal */}
+      {initiativeModalCombatant && (
+        <EditInitiativeModal
+          combatant={initiativeModalCombatant}
+          onClose={() => setInitiativeModalCombatant(null)}
+          onSaveInitiative={(combatantId, newInitiative) => {
+            setInitiative(combatantId, newInitiative);
+            showToast(`⚡ Set ${initiativeModalCombatant.name}'s initiative to ${newInitiative}`);
+          }}
+        />
       )}
     </div>
   );

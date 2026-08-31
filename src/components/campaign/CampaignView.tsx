@@ -21,6 +21,7 @@ import { CampaignNote, CampaignEntity } from '../../types/campaign';
 import { EntityEditorModal } from '../compendium/EntityEditorModal';
 import { NewCampaignModal } from './NewCampaignModal';
 import { getNoteCategoryIcon, getNoteCategoryStyle } from '../notes/NotesView';
+import { BookmarkButton } from '../bookmarks/BookmarkButton';
 
 export const CampaignView: React.FC = () => {
   const { 
@@ -402,6 +403,18 @@ export const CampaignView: React.FC = () => {
                     </div>
 
                     <div className="flex items-center space-x-1.5">
+                      <BookmarkButton
+                        type={selectedNote.category === 'NPC' ? 'npc' : (selectedNote.category === 'Lore' ? 'lore' : (selectedNote.category === 'Image' ? 'image' : 'note'))}
+                        targetId={selectedNote.id}
+                        title={selectedNote.name}
+                        subtitle={`${selectedNote.category || 'Note'} • ${campaign?.name || 'Campaign'}`}
+                        category={selectedNote.category || 'Note'}
+                        imageUrl={selectedNote.imageUrl}
+                        campaignId={campaign?.id}
+                        showText
+                        size="md"
+                      />
+
                       <button
                         onClick={() => {
                           setNewNoteTitle(selectedNote.name);

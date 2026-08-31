@@ -32,6 +32,7 @@ export interface Combatant {
   id: string; // unique instance ID in combat
   entityId?: string; // reference to Monster or Player entity
   name: string;
+  badge?: string; // Concise identifier badge (e.g. G1, G2)
   isPlayer: boolean;
   avatarUrl?: string;
   tokenUrl?: string;
@@ -51,6 +52,11 @@ export interface Combatant {
   isSurprised?: boolean;
   isHidden?: boolean;
   defeated?: boolean;
+  deathSaves?: {
+    successes: number;
+    failures: number;
+  };
+  lastHealAmount?: number;
   
   // Monster specific combat traits & actions
   actions?: MonsterAction[];

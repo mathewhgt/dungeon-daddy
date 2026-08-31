@@ -35,6 +35,8 @@ import {
 } from 'lucide-react';
 
 import { SpellEntity } from '../../types/spell';
+import { CombatState } from '../../types/combat';
+import { getMonsterBadge, getActiveTurnTokenId } from '../../utils/monsterUtils';
 
 export type VttTool = 
   | 'select' 
@@ -72,6 +74,10 @@ interface MapCanvasProps {
   onTokenMove?: (tokenId: string, x: number, y: number) => void;
   onDrawingAdd?: (drawing: MapDrawing) => void;
   onPinClick?: (pin: MapPinType) => void;
+  pingLocation?: { x: number; y: number; id: string; color?: string } | null;
+  initialViewport?: { x: number; y: number; zoom: number };
+  onViewportChange?: (vp: { x: number; y: number; zoom: number }) => void;
+  combatState?: CombatState;
 }
 
 /**
@@ -128,9 +134,13 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   onTokenMove,
   onDrawingAdd,
   onPinClick,
+  pingLocation,
+  initialViewport,
+  onViewportChange,
+  combatState: propCombatState,
 }) => {
   const { 
-    combatState, 
+    combatState: appCombatState, 
     updateMapToken, 
     deleteMapToken,
     toggleDoorOnMap, 
@@ -139,6 +149,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     saveMap, 
     showToast 
   } = useApp();
+
+  const combatState = propCombatState || appCombatState;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -149,13 +161,63 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   // Active Spell Animations
   const activeAnimationsRef = useRef<ActiveSpellAnimation[]>([]);
 
+  // Active Animated Pings (Expanding pulsing beacon rings)
+  const activePingsRef = useRef<Array<{ id: string; x: number; y: number; startTime: number; duration: number; color: string }>>([]);
+  const lastPingHandledRef = useRef<string | null>(null);
+
   // Viewport Pan & Zoom State (High performance 60/120fps Ref with decoupled state)
-  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
-  const viewportRef = useRef({ x: 0, y: 0, zoom: 1 });
+  const [viewport, setViewport] = useState(() => initialViewport || { x: 0, y: 0, zoom: 1 });
+  const viewportRef = useRef(initialViewport || { x: 0, y: 0, zoom: 1 });
   const [isPanning, setIsPanning] = useState(false);
   const isPanningRef = useRef(false);
   const panStartRef = useRef<Point2D>({ x: 0, y: 0 });
   const currentMouseWorldRef = useRef<Point2D>({ x: 0, y: 0 });
+
+  const onViewportChangeRef = useRef(onViewportChange);
+  onViewportChangeRef.current = onViewportChange;
+
+  const updateViewport = useCallback((newVp: { x: number; y: number; zoom: number }) => {
+    viewportRef.current = newVp;
+    setViewport(newVp);
+    if (onViewportChangeRef.current) {
+      onViewportChangeRef.current(newVp);
+    }
+  }, []);
+
+  // Sync / restore saved viewport when active map changes
+  useEffect(() => {
+    if (initialViewport) {
+      viewportRef.current = initialViewport;
+      setViewport(initialViewport);
+    }
+  }, [map.id]);
+
+  // Handle incoming Ping Location (runs ONCE per unique ping ID, then allows normal free movement)
+  useEffect(() => {
+    if (pingLocation && pingLocation.id && pingLocation.id !== lastPingHandledRef.current) {
+      lastPingHandledRef.current = pingLocation.id;
+      
+      activePingsRef.current.push({
+        id: pingLocation.id,
+        x: pingLocation.x,
+        y: pingLocation.y,
+        startTime: performance.now(),
+        duration: 3000,
+        color: pingLocation.color || '#facc15',
+      });
+
+      // Smoothly pan viewport to center on the pinged token once
+      const container = containerRef.current;
+      if (container) {
+        const cw = container.clientWidth || 800;
+        const ch = container.clientHeight || 600;
+        const curZoom = viewportRef.current.zoom;
+        const targetX = cw / 2 - pingLocation.x * curZoom;
+        const targetY = ch / 2 - pingLocation.y * curZoom;
+        updateViewport({ x: targetX, y: targetY, zoom: curZoom });
+      }
+    }
+  }, [pingLocation?.id, pingLocation?.x, pingLocation?.y, pingLocation?.color, updateViewport]);
 
   // Touch & Multi-Touch Gesture Tracking (Microsoft Surface & Touchscreens)
   const activePointersRef = useRef<Map<number, { x: number; y: number; pointerType: string }>>(new Map());
@@ -349,9 +411,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     const newX = ptX - (ptX - curVp.x) * (clampedZoom / curVp.zoom);
     const newY = ptY - (ptY - curVp.y) * (clampedZoom / curVp.zoom);
 
-    viewportRef.current = { x: newX, y: newY, zoom: clampedZoom };
-    setViewport({ x: newX, y: newY, zoom: clampedZoom });
-  }, []);
+    updateViewport({ x: newX, y: newY, zoom: clampedZoom });
+  }, [updateViewport]);
 
   const handleZoomIn = useCallback(() => {
     zoomAtPoint(viewportRef.current.zoom * 1.25);
@@ -374,9 +435,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     const centerX = (cw - mapW * fitZoom) / 2;
     const centerY = (ch - mapH * fitZoom) / 2;
 
-    viewportRef.current = { x: centerX, y: centerY, zoom: fitZoom };
-    setViewport({ x: centerX, y: centerY, zoom: fitZoom });
-  }, [map.width, map.height]);
+    updateViewport({ x: centerX, y: centerY, zoom: fitZoom });
+  }, [map.width, map.height, updateViewport]);
 
   // Zoom with Mouse Wheel / Touchpad pinch
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -395,8 +455,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     const newX = mouseX - (mouseX - curVp.x) * (newZoom / curVp.zoom);
     const newY = mouseY - (mouseY - curVp.y) * (newZoom / curVp.zoom);
 
-    viewportRef.current = { x: newX, y: newY, zoom: newZoom };
-    setViewport({ x: newX, y: newY, zoom: newZoom });
+    updateViewport({ x: newX, y: newY, zoom: newZoom });
   };
 
   // Find token at world coordinates
@@ -886,7 +945,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     // Sync viewport state on pinch end
     if (activePointersRef.current.size < 2 && pinchInitialRef.current) {
       pinchInitialRef.current = null;
-      setViewport({ ...viewportRef.current });
+      updateViewport({ ...viewportRef.current });
     }
 
     // If 1 pointer remains after multi-touch, re-anchor pan to avoid jumping
@@ -899,7 +958,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       if (isPanningRef.current) {
         setIsPanning(false);
         isPanningRef.current = false;
-        setViewport({ ...viewportRef.current });
+        updateViewport({ ...viewportRef.current });
       }
       setIsBrushPainting(false);
 
@@ -1460,6 +1519,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     }
 
     // 9. Token Layer with Live Monster Culling & Rich 5e Condition Badges
+    const activeTurnTokenId = getActiveTurnTokenId(combatState, map.tokens);
+
     for (const t of map.tokens) {
       const tokX = (draggedTokenPosRef.current?.id === t.id) ? draggedTokenPosRef.current.x : t.x;
       const tokY = (draggedTokenPosRef.current?.id === t.id) ? draggedTokenPosRef.current.y : t.y;
@@ -1488,8 +1549,64 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       const isPoisoned = t.conditions?.includes('poisoned');
       const isUnconscious = t.conditions?.includes('unconscious');
 
+      const isCurrentTurn = activeTurnTokenId !== null && t.id === activeTurnTokenId;
+
       ctx.save();
       ctx.translate(tokX, tokY);
+
+      // Active Turn Golden Glowing Aura & Turning Arcs (Easily identifiable turn indicator)
+      if (isCurrentTurn) {
+        const time = performance.now() * 0.003;
+        ctx.save();
+        // 1. Soft gold outer pulse
+        const pulseRadius = tokenRadius + 7 + Math.sin(time * 2) * 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, pulseRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.45)';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#eab308';
+        ctx.shadowBlur = 14;
+        ctx.stroke();
+
+        // 2. Rotating double gold arcs
+        ctx.beginPath();
+        ctx.arc(0, 0, tokenRadius + 6, time, time + Math.PI * 0.75);
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 3.5;
+        ctx.shadowColor = '#facc15';
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, tokenRadius + 6, time + Math.PI, time + Math.PI * 1.75);
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 3.5;
+        ctx.shadowColor = '#facc15';
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+        ctx.restore();
+
+        // 3. Golden Turn Badge [⚔️] at top
+        const tx = 0;
+        const ty = -tokenRadius - 10;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(tx, ty, 9, 0, Math.PI * 2);
+        ctx.fillStyle = '#78350f';
+        ctx.fill();
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#eab308';
+        ctx.shadowBlur = 8;
+        ctx.stroke();
+
+        ctx.fillStyle = '#fef08a';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚔️', tx, ty);
+        ctx.restore();
+      }
 
       // Selection Highlight Aura
       if (isSelected) {
@@ -1525,20 +1642,25 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         ctx.restore();
       }
 
+      const isDeadMonster = !t.isPlayer && (t.currentHp !== undefined && t.currentHp <= 0);
+      const isDownPlayer = t.isPlayer && (t.currentHp !== undefined && t.currentHp <= 0);
+
       // Hidden / Invisible Alpha
       if (t.hiddenFromPlayers || isInvisible) {
         ctx.globalAlpha = 0.45;
       }
 
-      // Unconscious Darkened Tint
-      if (isUnconscious) {
-        ctx.filter = 'grayscale(80%) brightness(50%)';
+      // Unconscious / Dead Monster Darkened Tint
+      if (isDeadMonster) {
+        ctx.filter = 'grayscale(100%) brightness(35%)';
+      } else if (isDownPlayer || isUnconscious) {
+        ctx.filter = 'grayscale(75%) brightness(50%)';
       }
 
       // Circular Token Body
       ctx.beginPath();
       ctx.arc(0, 0, tokenRadius, 0, Math.PI * 2);
-      ctx.fillStyle = t.isPlayer ? '#065f46' : '#7f1d1d';
+      ctx.fillStyle = isDeadMonster ? '#1e293b' : t.isPlayer ? '#065f46' : '#7f1d1d';
       ctx.fill();
 
       // Token Image if available
@@ -1561,12 +1683,97 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         }
       }
 
+      // Dark overlay for 0 HP entities
+      if (isDeadMonster) {
+        ctx.beginPath();
+        ctx.arc(0, 0, tokenRadius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(10, 15, 25, 0.65)';
+        ctx.fill();
+      } else if (isDownPlayer) {
+        ctx.beginPath();
+        ctx.arc(0, 0, tokenRadius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(69, 10, 10, 0.45)';
+        ctx.fill();
+      }
+
       // Border Ring
       ctx.beginPath();
       ctx.arc(0, 0, tokenRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = isSelected ? '#38bdf8' : t.isPlayer ? '#34d399' : '#f87171';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = isDeadMonster ? '#475569' : isDownPlayer ? '#ef4444' : isCurrentTurn ? '#facc15' : isSelected ? '#38bdf8' : t.isPlayer ? '#34d399' : '#f87171';
+      ctx.lineWidth = isCurrentTurn ? 2.5 : 2;
       ctx.stroke();
+
+      // Monster Defeated Skull Overlay Badge
+      if (isDeadMonster) {
+        ctx.save();
+        const skullRadius = Math.min(16, tokenRadius * 0.55);
+        ctx.beginPath();
+        ctx.arc(0, 0, skullRadius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+        ctx.fill();
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#ef4444';
+        ctx.shadowBlur = 8;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `${Math.max(11, Math.round(tokenRadius * 0.55))}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('💀', 0, 1);
+        ctx.restore();
+      } else if (isDownPlayer) {
+        ctx.save();
+        const badgeRadius = Math.min(14, tokenRadius * 0.5);
+        ctx.beginPath();
+        ctx.arc(0, 0, badgeRadius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(127, 29, 29, 0.92)';
+        ctx.fill();
+        ctx.strokeStyle = '#f87171';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `${Math.max(10, Math.round(tokenRadius * 0.45))}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🩸', 0, 1);
+        ctx.restore();
+      }
+
+      // Monster Identifier Badge (e.g. G1, G2, G3)
+      const monsterBadge = !t.isPlayer ? (t.badge || getMonsterBadge(t, map.tokens)) : null;
+      if (monsterBadge) {
+        const bx = -tokenRadius + 2;
+        const by = -tokenRadius + 2;
+        ctx.save();
+        ctx.font = 'bold 9px sans-serif';
+        const textW = ctx.measureText(monsterBadge).width;
+        const badgeW = Math.max(16, textW + 8);
+        const badgeH = 14;
+
+        ctx.beginPath();
+        if (typeof (ctx as any).roundRect === 'function') {
+          (ctx as any).roundRect(bx - badgeW / 2, by - badgeH / 2, badgeW, badgeH, 6);
+        } else {
+          ctx.arc(bx, by, 8, 0, Math.PI * 2);
+        }
+        ctx.fillStyle = '#831843'; // Deep crimson
+        ctx.fill();
+        ctx.strokeStyle = '#f472b6'; // Vibrant pink border
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#f43f5e';
+        ctx.shadowBlur = 6;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(monsterBadge, bx, by + 0.5);
+        ctx.restore();
+      }
 
       // Condition Badges Arc
       if (t.conditions && t.conditions.length > 0) {
@@ -1620,14 +1827,78 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         ctx.restore();
       }
 
-      // Nameplate Tag
-      ctx.fillStyle = 'rgba(13, 17, 23, 0.85)';
-      const nameW = ctx.measureText(t.name).width + 12;
-      ctx.fillRect(-nameW / 2, tokenRadius + 4, nameW, 16);
-      ctx.fillStyle = '#ffffff';
+      // Mini Health Bar above Nameplate if maxHp > 0
+      if (t.maxHp && t.maxHp > 0) {
+        const curHp = Math.max(0, t.currentHp ?? t.maxHp);
+        const hpRatio = Math.min(1, curHp / t.maxHp);
+        const barW = Math.max(28, tokenRadius * 1.6);
+        const barH = 3.5;
+        const barX = -barW / 2;
+        const barY = tokenRadius + 2;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+
+        ctx.fillStyle = hpRatio > 0.5 ? '#22c55e' : hpRatio > 0.2 ? '#eab308' : '#ef4444';
+        ctx.fillRect(barX, barY, barW * hpRatio, barH);
+      }
+
+      // Dynamic nameplate: append sequence number if monster is unnumbered
+      let tokenDisplayName = t.name;
+      if (!t.isPlayer && monsterBadge) {
+        const hasTrailingNumber = /\d+$/.test(t.name.trim());
+        if (!hasTrailingNumber) {
+          const badgeNum = monsterBadge.replace(/^[A-Z]+/i, '');
+          if (badgeNum) {
+            tokenDisplayName = `${t.name} ${badgeNum}`;
+          }
+        }
+      }
+
+      // Nameplate Tag (with Gold highlight if current turn, Dark Red for 0 HP)
+      const nameOffsetY = (t.maxHp && t.maxHp > 0) ? 8 : 4;
+      const isDeadMonsterName = isDeadMonster;
+      const isDownPlayerName = isDownPlayer;
+
+      let formattedDisplayName = tokenDisplayName;
+      if (isDeadMonsterName) formattedDisplayName += ' [DEAD]';
+      else if (isDownPlayerName) formattedDisplayName += ' [0 HP]';
+
+      ctx.fillStyle = isCurrentTurn
+        ? 'rgba(120, 53, 15, 0.95)'
+        : isDeadMonsterName
+        ? 'rgba(15, 23, 42, 0.9)'
+        : isDownPlayerName
+        ? 'rgba(69, 10, 10, 0.92)'
+        : 'rgba(13, 17, 23, 0.85)';
+
+      const nameW = ctx.measureText(formattedDisplayName).width + 12;
+      ctx.fillRect(-nameW / 2, tokenRadius + nameOffsetY, nameW, 16);
+
+      if (isCurrentTurn) {
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(-nameW / 2, tokenRadius + nameOffsetY, nameW, 16);
+      } else if (isDeadMonsterName) {
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-nameW / 2, tokenRadius + nameOffsetY, nameW, 16);
+      } else if (isDownPlayerName) {
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-nameW / 2, tokenRadius + nameOffsetY, nameW, 16);
+      }
+
+      ctx.fillStyle = isCurrentTurn
+        ? '#fef08a'
+        : isDeadMonsterName
+        ? '#94a3b8'
+        : isDownPlayerName
+        ? '#fca5a5'
+        : '#ffffff';
       ctx.font = 'bold 10px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(t.name, 0, tokenRadius + 16);
+      ctx.fillText(formattedDisplayName, 0, tokenRadius + nameOffsetY + 12);
 
       ctx.restore();
     }
@@ -1669,7 +1940,66 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       ctx.restore();
     }
 
-    // 11. Fog of War Brush Cursor Preview
+    // 11. Animated Pings Layer (Expanding pulsing beacon waves + target reticle)
+    const now = performance.now();
+    activePingsRef.current = activePingsRef.current.filter((p) => now - p.startTime < p.duration);
+
+    for (const ping of activePingsRef.current) {
+      const elapsed = now - ping.startTime;
+      const progress = elapsed / ping.duration; // 0 to 1
+      const color = ping.color || '#facc15';
+
+      ctx.save();
+      ctx.translate(ping.x, ping.y);
+
+      // 3 Staggered Expanding Waves
+      for (let wave = 0; wave < 3; wave++) {
+        const waveProgress = ((elapsed + wave * 380) % 1100) / 1100;
+        const radius = 18 + waveProgress * 85;
+        const alpha = (1 - waveProgress) * (1 - progress * 0.4);
+
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3.5 * (1 - waveProgress);
+        ctx.globalAlpha = Math.max(0, alpha);
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 18;
+        ctx.stroke();
+      }
+
+      // Central Pulsing Target Crosshair Reticle
+      ctx.globalAlpha = Math.max(0, 1 - progress * 0.8);
+      const pulse = 1 + Math.sin(elapsed * 0.012) * 0.18;
+
+      ctx.save();
+      ctx.rotate(elapsed * 0.003);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 12;
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 14 * pulse, 0, Math.PI * 2);
+      ctx.moveTo(-22 * pulse, 0); ctx.lineTo(-10 * pulse, 0);
+      ctx.moveTo(10 * pulse, 0); ctx.lineTo(22 * pulse, 0);
+      ctx.moveTo(0, -22 * pulse); ctx.lineTo(0, -10 * pulse);
+      ctx.moveTo(0, 10 * pulse); ctx.lineTo(0, 22 * pulse);
+      ctx.stroke();
+      ctx.restore();
+
+      // Center High-Glow Pin Dot
+      ctx.beginPath();
+      ctx.arc(0, 0, 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 14;
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // 12. Fog of War Brush Cursor Preview
     if (activeTool === 'fog-reveal' || activeTool === 'fog-hide') {
       ctx.save();
       ctx.strokeStyle = activeTool === 'fog-reveal' ? '#06b6d4' : '#818cf8';

@@ -25,11 +25,14 @@ import { EntityEditorModal } from '../compendium/EntityEditorModal';
 import { TokenAvatar } from '../common/TokenAvatar';
 import { CharacterSheetView } from './CharacterSheetView';
 import { CharacterPrintModal } from './CharacterPrintModal';
+import { BookmarkButton } from '../bookmarks/BookmarkButton';
 
 export const PartyView: React.FC = () => {
   const { 
     db, 
     activeCampaignId, 
+    selectedPlayerId: contextSelectedPlayerId,
+    setSelectedPlayerId: contextSetSelectedPlayerId,
     savePlayer, 
     deletePlayer, 
     playerRest, 
@@ -38,7 +41,12 @@ export const PartyView: React.FC = () => {
     showToast 
   } = useApp();
 
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [localSelectedPlayerId, setLocalSelectedPlayerId] = useState<string | null>(null);
+  const selectedPlayerId = contextSelectedPlayerId || localSelectedPlayerId;
+  const setSelectedPlayerId = (id: string | null) => {
+    setLocalSelectedPlayerId(id);
+    contextSetSelectedPlayerId(id);
+  };
   const [filterMode, setFilterMode] = useState<'all' | 'campaign'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -245,18 +253,32 @@ export const PartyView: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Open Full Sheet Button */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedPlayerId(p.id);
-                        }}
-                        className="p-2 rounded-lg bg-surface-50 hover:bg-amber-500 text-slate-400 hover:text-slate-950 border border-surface-border transition-all shadow-sm"
-                        title="Open Full Character Sheet"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
+                      {/* Card Action Buttons */}
+                      <div className="flex items-center space-x-1.5" onClick={(e) => e.stopPropagation()}>
+                        <BookmarkButton
+                          type="player"
+                          targetId={p.id}
+                          title={p.name}
+                          subtitle={`Lv ${p.level} ${p.race} ${p.characterClass}`}
+                          category="Hero"
+                          imageUrl={p.avatarUrl || p.tokenUrl}
+                          campaignId={p.campaignId}
+                          size="md"
+                        />
+
+                        {/* Open Full Sheet Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPlayerId(p.id);
+                          }}
+                          className="p-2 rounded-lg bg-surface-50 hover:bg-amber-500 text-slate-400 hover:text-slate-950 border border-surface-border transition-all shadow-sm"
+                          title="Open Full Character Sheet"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Vitals Badges */}

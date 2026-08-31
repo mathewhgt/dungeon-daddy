@@ -33,6 +33,7 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
         serif: ['Cinzel', 'Georgia', 'Cambria', 'serif'],
+        book: ['Georgia', 'Cambria', '"Times New Roman"', 'serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
       }
     },

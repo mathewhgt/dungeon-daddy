@@ -22,7 +22,7 @@ export interface DisplaySettings {
 
 export interface ProjectedMedia {
   id: string;
-  type: 'note' | 'monster' | 'image' | 'spell' | 'item';
+  type: 'note' | 'monster' | 'player' | 'image' | 'spell' | 'item';
   title: string;
   subtitle?: string;
   imageUrl?: string;
@@ -57,6 +57,7 @@ export interface PlayerDisplayState {
   selectedTokenId: string | null;
   projectedMedia: ProjectedMedia | null;
   latestDiceRoll: PlayerDiceRoll | null;
+  activePing?: { x: number; y: number; id: string; color?: string } | null;
   characterCreation?: PlayerCharacterCreationDisplayState | null;
   campaignInfo?: {
     name: string;

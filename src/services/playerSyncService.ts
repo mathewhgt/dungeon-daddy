@@ -209,6 +209,10 @@ class PlayerSyncService {
     this.broadcast({ combatState });
   }
 
+  public broadcastPing(activePing: { x: number; y: number; id: string; color?: string } | null) {
+    this.broadcast({ activePing });
+  }
+
   public setSettings(settings: Partial<DisplaySettings>) {
     this.broadcast({
       displaySettings: {

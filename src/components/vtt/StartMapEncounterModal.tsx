@@ -37,12 +37,16 @@ export const StartMapEncounterModal: React.FC<StartMapEncounterModalProps> = ({
     }
   };
 
+  // Filter out monsters that are hidden from players
+  const activeTokens = tokens.filter((t) => t.isPlayer || !t.hiddenFromPlayers);
+  const hiddenMonstersCount = tokens.filter((t) => !t.isPlayer && t.hiddenFromPlayers).length;
+
   // Initialize initiatives:
   // - Monsters default to standard 10 + Dex mod
   // - Players default to 10 + Dex mod or empty
   const [initiatives, setInitiatives] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
-    for (const t of tokens) {
+    for (const t of activeTokens) {
       const dexMod = getDexModifier(t);
       initial[t.id] = 10 + dexMod;
     }
@@ -60,7 +64,7 @@ export const StartMapEncounterModal: React.FC<StartMapEncounterModalProps> = ({
 
   const handleRollAllMonsters = () => {
     const updated = { ...initiatives };
-    for (const t of tokens.filter((tok) => !tok.isPlayer)) {
+    for (const t of activeTokens.filter((tok) => !tok.isPlayer)) {
       const dexMod = getDexModifier(t);
       const d20 = Math.floor(Math.random() * 20) + 1;
       updated[t.id] = d20 + dexMod;
@@ -70,7 +74,7 @@ export const StartMapEncounterModal: React.FC<StartMapEncounterModalProps> = ({
 
   const handleAutoRollAllPlayers = () => {
     const updated = { ...initiatives };
-    for (const t of tokens.filter((tok) => tok.isPlayer)) {
+    for (const t of activeTokens.filter((tok) => tok.isPlayer)) {
       const dexMod = getDexModifier(t);
       const d20 = Math.floor(Math.random() * 20) + 1;
       updated[t.id] = d20 + dexMod;
@@ -80,7 +84,7 @@ export const StartMapEncounterModal: React.FC<StartMapEncounterModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const initiativeList = tokens.map((t) => ({
+    const initiativeList = activeTokens.map((t) => ({
       tokenId: t.id,
       initiative: initiatives[t.id] ?? 10,
     }));
@@ -88,8 +92,8 @@ export const StartMapEncounterModal: React.FC<StartMapEncounterModalProps> = ({
     onClose();
   };
 
-  const players = tokens.filter((t) => t.isPlayer);
-  const monsters = tokens.filter((t) => !t.isPlayer);
+  const players = activeTokens.filter((t) => t.isPlayer);
+  const monsters = activeTokens.filter((t) => !t.isPlayer);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 select-none">
@@ -103,6 +107,11 @@ export const StartMapEncounterModal: React.FC<StartMapEncounterModalProps> = ({
             </h3>
             <p className="text-[11px] text-slate-400">
               Enter player rolled initiatives. Monsters auto-calculate with standard 10 + DEX modifier.
+              {hiddenMonstersCount > 0 && (
+                <span className="text-amber-400 font-semibold block mt-0.5">
+                  ({hiddenMonstersCount} hidden monster{hiddenMonstersCount > 1 ? 's' : ''} excluded from combat)
+                </span>
+              )}
             </p>
           </div>
           <button onClick={onClose} className="p-1 rounded text-slate-400 hover:text-white">

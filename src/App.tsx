@@ -3,6 +3,7 @@ import { TitleBar } from './components/layout/TitleBar';
 import { Sidebar } from './components/layout/Sidebar';
 import { RadialMenu } from './components/layout/RadialMenu';
 import { DiceDrawer } from './components/dice/DiceDrawer';
+import { BookmarksDrawer } from './components/bookmarks/BookmarksDrawer';
 import { CompendiumView } from './components/compendium/CompendiumView';
 import { PartyView } from './components/party/PartyView';
 import { NotesView } from './components/notes/NotesView';
@@ -50,6 +51,9 @@ export const App: React.FC = () => {
 
       {/* Global Dice Tray Drawer (Ctrl + D) */}
       <DiceDrawer />
+
+      {/* Global Session Bookmarks Drawer (Ctrl + B) */}
+      <BookmarksDrawer />
 
       {/* Global Database Snapshots & Rollback History Modal */}
       <DatabaseRollbackModal

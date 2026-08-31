@@ -28,6 +28,8 @@ import { BattleMapEntity, MapToken } from '../../types/map';
 import { Combatant } from '../../types/combat';
 import { NoteContentRenderer } from '../notes/NoteEntityPopover';
 import { PlayerCharacterCreationWalkthrough } from './PlayerCharacterCreationWalkthrough';
+import { getMonsterBadge } from '../../utils/monsterUtils';
+import { DeathSavesTracker } from '../common/DeathSavesTracker';
 
 export const PlayerDisplayView: React.FC = () => {
   const [displayState, setDisplayState] = useState<PlayerDisplayState>(() => playerSyncService.getState());
@@ -177,6 +179,8 @@ export const PlayerDisplayView: React.FC = () => {
                 controlledCamera={displaySettings.followDmCamera ? camera : undefined}
                 showGrid={displaySettings.showGrid}
                 selectedToken={selectedToken}
+                pingLocation={displayState.activePing}
+                combatState={displayState.combatState}
                 onSelectToken={() => {}}
                 onOpenPinModal={() => {}}
               />
@@ -200,12 +204,18 @@ export const PlayerDisplayView: React.FC = () => {
                     {visibleCombatants.map((c: Combatant, index: number) => {
                       const isCurrent = index === combatState.currentTurnIndex;
                       const hpPercent = c.maxHp > 0 ? Math.max(0, Math.min(100, (c.currentHp / c.maxHp) * 100)) : 100;
+                      const isDeadMonster = !c.isPlayer && (c.currentHp <= 0 || c.defeated);
+                      const isDownPlayer = c.isPlayer && c.currentHp <= 0;
 
                       return (
                         <div
                           key={c.id}
                           className={`px-3 py-1.5 rounded-xl border flex items-center space-x-2 shrink-0 transition-all ${
-                            isCurrent
+                            isDeadMonster
+                              ? 'opacity-40 grayscale bg-black/40 border-slate-800'
+                              : isDownPlayer
+                              ? 'bg-red-950/30 border-red-600/80 shadow-md shadow-red-500/20'
+                              : isCurrent
                               ? 'bg-amber-500/20 border-amber-500 shadow-md shadow-amber-500/20 scale-105'
                               : 'bg-surface-100/80 border-surface-border/60 text-slate-300'
                           }`}
@@ -219,30 +229,72 @@ export const PlayerDisplayView: React.FC = () => {
                           )}
 
                           <div>
-                            <div className={`text-xs font-bold truncate max-w-[100px] ${isCurrent ? 'text-amber-300' : 'text-slate-200'}`}>
-                              {c.name}
-                            </div>
+                            {(() => {
+                              const monsterBadge = !c.isPlayer ? (c.badge || getMonsterBadge(c, displayState.combatState?.combatants || [])) : null;
+                              let combatantDisplayName = c.name;
+                              if (!c.isPlayer && monsterBadge) {
+                                const hasTrailingNumber = /\d+$/.test(c.name.trim());
+                                if (!hasTrailingNumber) {
+                                  const badgeNum = monsterBadge.replace(/^[A-Z]+/i, '');
+                                  if (badgeNum) combatantDisplayName = `${c.name} ${badgeNum}`;
+                                }
+                              }
+                              return (
+                                <div className="flex items-center space-x-1.5">
+                                  <span className={`text-xs font-bold truncate max-w-[90px] ${
+                                    isDeadMonster
+                                      ? 'line-through text-slate-500'
+                                      : isDownPlayer
+                                      ? 'text-red-300'
+                                      : isCurrent
+                                      ? 'text-amber-300'
+                                      : 'text-slate-200'
+                                  }`}>
+                                    {combatantDisplayName}
+                                  </span>
+                                  {monsterBadge && (
+                                    <span className="px-1 py-0.2 rounded text-[9px] font-mono font-black bg-pink-950/90 border border-pink-500/60 text-pink-300">
+                                      {monsterBadge}
+                                    </span>
+                                  )}
+                                  {isDeadMonster && (
+                                    <span className="px-1 py-0.2 rounded bg-red-950 border border-red-700 text-red-300 font-bold text-[8px]">
+                                      DEAD
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
 
-                            {/* Health Bar if enabled */}
-                            {displaySettings.monsterHpVisibility === 'bars' && (
-                              <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden mt-0.5 border border-slate-700">
-                                <div
-                                  className={`h-full transition-all ${
-                                    hpPercent > 50 ? 'bg-emerald-500' : hpPercent > 20 ? 'bg-amber-500' : 'bg-red-500'
-                                  }`}
-                                  style={{ width: `${hpPercent}%` }}
-                                />
+                            {/* Death Saves on player 0 HP */}
+                            {isDownPlayer ? (
+                              <div className="mt-0.5">
+                                <DeathSavesTracker saves={c.deathSaves} readOnly compact lastHealAmount={c.lastHealAmount} />
                               </div>
-                            )}
+                            ) : (
+                              <>
+                                {/* Health Bar if enabled */}
+                                {displaySettings.monsterHpVisibility === 'bars' && (
+                                  <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden mt-0.5 border border-slate-700">
+                                    <div
+                                      className={`h-full transition-all ${
+                                        hpPercent > 50 ? 'bg-emerald-500' : hpPercent > 20 ? 'bg-amber-500' : 'bg-red-500'
+                                      }`}
+                                      style={{ width: `${hpPercent}%` }}
+                                    />
+                                  </div>
+                                )}
 
-                            {displaySettings.monsterHpVisibility === 'numbers' && (
-                              <div className="text-[10px] font-mono text-emerald-400 font-semibold">
-                                {c.currentHp} / {c.maxHp} HP
-                              </div>
+                                {displaySettings.monsterHpVisibility === 'numbers' && (
+                                  <div className="text-[10px] font-mono text-emerald-400 font-semibold">
+                                    {c.currentHp} / {c.maxHp} HP
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
 
-                          {c.initiative !== undefined && (
+                          {c.initiative !== undefined && !isDeadMonster && (
                             <span className="px-1.5 py-0.2 rounded bg-surface-50 text-[10px] font-mono font-bold text-amber-400 ml-1">
                               {c.initiative}
                             </span>
@@ -312,30 +364,49 @@ export const PlayerDisplayView: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Health display */}
-                      {displaySettings.monsterHpVisibility === 'bars' && activeCombatant.maxHp > 0 && (
-                        <div className="space-y-1 max-w-md">
-                          <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
-                            <div
-                              className="h-full bg-emerald-500 transition-all duration-500"
-                              style={{ width: `${Math.max(0, Math.min(100, (activeCombatant.currentHp / activeCombatant.maxHp) * 100))}%` }}
-                            />
-                          </div>
+                      {/* Health display or Death Saves */}
+                      {activeCombatant.isPlayer && activeCombatant.currentHp <= 0 ? (
+                        <div className="pt-2 max-w-lg">
+                          <DeathSavesTracker
+                            saves={activeCombatant.deathSaves}
+                            readOnly
+                            lastHealAmount={activeCombatant.lastHealAmount}
+                            characterName={activeCombatant.name}
+                          />
                         </div>
-                      )}
+                      ) : (
+                        <>
+                          {displaySettings.monsterHpVisibility === 'bars' && activeCombatant.maxHp > 0 && (
+                            <div className="space-y-1 max-w-md">
+                              <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                                <div
+                                  className={`h-full transition-all duration-500 ${
+                                    (activeCombatant.currentHp / activeCombatant.maxHp) > 0.5
+                                      ? 'bg-emerald-500'
+                                      : (activeCombatant.currentHp / activeCombatant.maxHp) > 0.2
+                                      ? 'bg-amber-500'
+                                      : 'bg-red-500'
+                                  }`}
+                                  style={{ width: `${Math.max(0, Math.min(100, (activeCombatant.currentHp / activeCombatant.maxHp) * 100))}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
 
-                      {displaySettings.monsterHpVisibility === 'numbers' && (
-                        <div className="text-sm font-mono text-emerald-400 font-bold">
-                          {activeCombatant.currentHp} / {activeCombatant.maxHp} HP
-                        </div>
+                          {displaySettings.monsterHpVisibility === 'numbers' && (
+                            <div className="text-sm font-mono text-emerald-400 font-bold">
+                              {activeCombatant.currentHp} / {activeCombatant.maxHp} HP
+                            </div>
+                          )}
+                        </>
                       )}
 
                       {/* Conditions */}
                       {activeCombatant.conditions && activeCombatant.conditions.length > 0 && (
                         <div className="flex items-center space-x-2 pt-1 flex-wrap gap-y-1">
                           {activeCombatant.conditions.map((cond: any) => (
-                            <span key={cond} className="px-2.5 py-0.5 rounded-full bg-red-950 border border-red-700 text-red-300 text-xs font-bold">
-                              {cond}
+                            <span key={cond.id || cond.name || cond} className="px-2.5 py-0.5 rounded-full bg-red-950 border border-red-700 text-red-300 text-xs font-bold">
+                              {cond.name || cond}
                             </span>
                           ))}
                         </div>
@@ -349,12 +420,18 @@ export const PlayerDisplayView: React.FC = () => {
                   {visibleCombatants.map((c: Combatant, idx: number) => {
                     const isCurrent = idx === combatState.currentTurnIndex;
                     const hpPercent = c.maxHp > 0 ? Math.max(0, Math.min(100, (c.currentHp / c.maxHp) * 100)) : 100;
+                    const isDeadMonster = !c.isPlayer && (c.currentHp <= 0 || c.defeated);
+                    const isDownPlayer = c.isPlayer && c.currentHp <= 0;
 
                     return (
                       <div
                         key={c.id}
                         className={`p-3 rounded-2xl border transition-all flex items-center space-x-3 ${
-                          isCurrent
+                          isDeadMonster
+                            ? 'opacity-40 grayscale bg-black/40 border-slate-800'
+                            : isDownPlayer
+                            ? 'bg-red-950/30 border-red-700'
+                            : isCurrent
                             ? 'bg-amber-500/20 border-amber-500 shadow-lg shadow-amber-500/10 scale-102'
                             : idx < combatState.currentTurnIndex
                             ? 'bg-surface-50/40 border-surface-border/40 opacity-60'

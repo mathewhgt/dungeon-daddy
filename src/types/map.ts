@@ -52,6 +52,7 @@ export interface MapToken {
   entityId?: string; // Player or Monster ID
   combatantId?: string; // Active combatant instance ID
   name: string;
+  badge?: string; // Concise identifier badge (e.g. G1, G2)
   tokenUrl?: string;
   avatarUrl?: string;
   isPlayer: boolean;

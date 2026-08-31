@@ -35,6 +35,7 @@ import { CampaignNote, NoteCategory, NOTE_CATEGORIES } from '../../types/campaig
 import { RichNoteEditor } from './RichNoteEditor';
 import { NoteContentRenderer } from './NoteEntityPopover';
 import { UploadMediaModal } from './UploadMediaModal';
+import { BookmarkButton } from '../bookmarks/BookmarkButton';
 import { fuzzyMatchMultiple } from '../../utils/searchUtils';
 
 export const getNoteCategoryIcon = (category?: NoteCategory) => {
@@ -132,6 +133,8 @@ export const NotesView: React.FC = () => {
   const { 
     db, 
     activeCampaignId, 
+    selectedNoteId: contextSelectedNoteId,
+    setSelectedNoteId: contextSetSelectedNoteId,
     saveCampaignNote, 
     deleteCampaignNote, 
     showToast, 
@@ -143,9 +146,15 @@ export const NotesView: React.FC = () => {
   const campaign = db.campaigns.find((c) => c.id === activeCampaignId) || db.campaigns[0];
   const notes = campaign?.notes || [];
 
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(
+  const [localSelectedNoteId, setLocalSelectedNoteId] = useState<string | null>(
     notes.find((n) => !n.isFolder)?.id || notes[0]?.id || null
   );
+
+  const selectedNoteId = contextSelectedNoteId || localSelectedNoteId;
+  const setSelectedNoteId = (id: string | null) => {
+    setLocalSelectedNoteId(id);
+    contextSetSelectedNoteId(id);
+  };
   const [isEditing, setIsEditing] = useState(false);
   const [editingNote, setEditingNote] = useState<Partial<CampaignNote> | null>(null);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => {
@@ -613,6 +622,17 @@ export const NotesView: React.FC = () => {
                     </div>
 
                     <div className="flex items-center space-x-2">
+                      <BookmarkButton
+                        type="note"
+                        targetId={selectedNote.id}
+                        title={selectedNote.name}
+                        subtitle={`Folder (${folderChildItems.length} items) • ${campaign?.name || 'Campaign'}`}
+                        category="Folder"
+                        campaignId={campaign?.id}
+                        showText
+                        size="md"
+                      />
+
                       <button
                         onClick={() => {
                           setRenamingFolder(selectedNote);
@@ -748,11 +768,23 @@ export const NotesView: React.FC = () => {
                                       )}
                                       <span className="truncate">{child.name}</span>
                                     </div>
-                                    {!hasImg && (
-                                      <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold border ${child.isFolder ? 'bg-surface-50 border-surface-border text-slate-400' : getNoteCategoryStyle(child.category).badgeBg}`}>
-                                        {child.category}
-                                      </span>
-                                    )}
+                                    <div className="flex items-center space-x-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                      {!hasImg && (
+                                        <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold border ${child.isFolder ? 'bg-surface-50 border-surface-border text-slate-400' : getNoteCategoryStyle(child.category).badgeBg}`}>
+                                          {child.category}
+                                        </span>
+                                      )}
+                                      <BookmarkButton
+                                        type={child.isFolder ? 'note' : (child.category === 'Image' ? 'image' : (child.category === 'NPC' ? 'npc' : (child.category === 'Lore' ? 'lore' : 'note')))}
+                                        targetId={child.id}
+                                        title={child.name}
+                                        subtitle={`${child.isFolder ? 'Folder' : (child.category || 'Note')} • ${campaign?.name || 'Campaign'}`}
+                                        category={child.isFolder ? 'Folder' : child.category}
+                                        imageUrl={child.imageUrl}
+                                        campaignId={campaign?.id}
+                                        size="sm"
+                                      />
+                                    </div>
                                   </div>
 
                                   {!child.isFolder && child.content && (
@@ -844,6 +876,18 @@ export const NotesView: React.FC = () => {
 
                     {/* Action Buttons */}
                     <div className="flex items-center space-x-2">
+                      <BookmarkButton
+                        type={selectedNote.category === 'Image' ? 'image' : (selectedNote.category === 'NPC' ? 'npc' : (selectedNote.category === 'Lore' ? 'lore' : 'note'))}
+                        targetId={selectedNote.id}
+                        title={selectedNote.name}
+                        subtitle={`${selectedNote.category || 'Note'} • ${campaign?.name || 'Campaign'}`}
+                        category={selectedNote.category}
+                        imageUrl={selectedNote.imageUrl}
+                        campaignId={campaign?.id}
+                        showText
+                        size="md"
+                      />
+
                       <button
                         onClick={() => {
                           projectMediaToDisplay({
@@ -988,6 +1032,18 @@ export const NotesView: React.FC = () => {
 
                     {/* Actions */}
                     <div className="flex items-center space-x-1.5">
+                      <BookmarkButton
+                        type={selectedNote.category === 'NPC' ? 'npc' : (selectedNote.category === 'Lore' ? 'lore' : 'note')}
+                        targetId={selectedNote.id}
+                        title={selectedNote.name}
+                        subtitle={`${selectedNote.category || 'Note'} • ${campaign?.name || 'Campaign'}`}
+                        category={selectedNote.category || 'Note'}
+                        imageUrl={selectedNote.imageUrl}
+                        campaignId={campaign?.id}
+                        showText
+                        size="md"
+                      />
+
                       <button
                         onClick={() => {
                           projectMediaToDisplay({

@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dungeon Daddy — User Manual</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 20mm 16mm;
+      @bottom-right {
+        content: counter(page);
+      }
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.55;
+      color: #1e293b;
+      background: #ffffff;
+      margin: 0;
+      padding: 0;
+    }
+
+    .cover {
+      page-break-after: always;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 90vh;
+      text-align: center;
+      border: 3px double #d97706;
+      padding: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+    }
+
+    .cover h1 {
+      font-size: 32pt;
+      margin: 0 0 10px 0;
+      color: #92400e;
+      letter-spacing: -0.5px;
+      font-weight: 800;
+    }
+
+    .cover .subtitle {
+      font-size: 14pt;
+      color: #78350f;
+      margin-bottom: 30px;
+      font-weight: 500;
+    }
+
+    .cover .badge {
+      display: inline-block;
+      padding: 6px 16px;
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #f59e0b;
+      border-radius: 9999px;
+      font-size: 10pt;
+      font-weight: 600;
+      margin-bottom: 40px;
+    }
+
+    .cover .footer-meta {
+      margin-top: auto;
+      font-size: 9pt;
+      color: #64748b;
+    }
+
+    h1, h2, h3, h4 {
+      color: #0f172a;
+      page-break-after: avoid;
+      font-weight: 700;
+    }
+
+    h1 {
+      font-size: 18pt;
+      border-bottom: 2px solid #f59e0b;
+      padding-bottom: 4px;
+      margin-top: 24pt;
+      margin-bottom: 12pt;
+    }
+
+    h2 {
+      font-size: 14pt;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 3px;
+      margin-top: 18pt;
+      margin-bottom: 8pt;
+      color: #b45309;
+    }
+
+    h3 {
+      font-size: 11.5pt;
+      margin-top: 14pt;
+      margin-bottom: 6pt;
+      color: #1e293b;
+    }
+
+    h4 {
+      font-size: 10.5pt;
+      margin-top: 10pt;
+      margin-bottom: 4pt;
+    }
+
+    p {
+      margin: 0 0 8pt 0;
+    }
+
+    ul, ol {
+      margin: 0 0 10pt 0;
+      padding-left: 20px;
+    }
+
+    li {
+      margin-bottom: 3pt;
+    }
+
+    strong {
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    code {
+      font-family: "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+      font-size: 8.5pt;
+      background: #f1f5f9;
+      color: #b45309;
+      padding: 1.5px 4px;
+      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+    }
+
+    pre {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 12px 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 8.5pt;
+      line-height: 1.4;
+      page-break-inside: avoid;
+      border: 1px solid #334155;
+      margin: 10pt 0;
+    }
+
+    pre code {
+      background: transparent;
+      color: #f8fafc;
+      padding: 0;
+      border: none;
+      font-size: 8.5pt;
+    }
+
+    .manual-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12pt 0;
+      font-size: 9pt;
+      page-break-inside: avoid;
+    }
+
+    .manual-table th {
+      background: #f8fafc;
+      color: #0f172a;
+      text-align: left;
+      font-weight: 600;
+      padding: 7px 10px;
+      border: 1px solid #cbd5e1;
+    }
+
+    .manual-table td {
+      padding: 6px 10px;
+      border: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+
+    .manual-table tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    .manual-hr {
+      border: 0;
+      height: 1px;
+      background: #e2e8f0;
+      margin: 18pt 0;
+    }
+
+    a {
+      color: #d97706;
+      text-decoration: none;
+    }
+
+    /* Print Optimizations */
+    @media print {
+      body {
+        font-size: 9.5pt;
+      }
+      h1 {
+        page-break-before: always;
+      }
+      h1:first-of-type {
+        page-break-before: avoid;
+      }
+      .manual-table, pre, blockquote {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>DUNGEON DADDY</h1>
+  <div class="subtitle">Complete User Manual & Operational Reference Guide</div>
+  <div class="badge">Official D&amp;D 5e 2024 &amp; 2014 Edition Companion</div>
+  <p style="max-width: 480px; font-size: 10pt; color: #475569; margin: 0 auto 30px auto;">
+    A comprehensive guide to campaign management, tactical virtual tabletop (VTT), encounter building, interactive notes, 2024 character creation, and live session running.
+  </p>
+  <div class="footer-meta">
+    <strong>Dungeon Daddy Software</strong> &bull; Version 2.0 &bull; Generated for Windows / Desktop
+  </div>
+</div>
+
+<div class="content">
+<h1 id="dungeon-daddy-comprehensive-user-manual">Dungeon Daddy — Comprehensive User Manual</h1>
+<p><strong>Version 2.0 (D&D 5e 2024 & 2014 Edition Support)</strong></p>
+<p>Welcome to <strong>Dungeon Daddy</strong>, an all-in-one Dungeon Master campaign management suite and Virtual Tabletop (VTT). This manual is structured into two main parts:</p>
+<ol>
+<li><strong>Part 1: Use Cases & Workflows</strong> — Step-by-step guides for preparing and running sessions, battlemaps, combat, campaigns, character creation, note-taking, and loot generation.</li>
+<li><strong>Part 2: Complete Feature Reference</strong> — In-depth breakdown of every module, panel, modal, tool, setting, and keyboard shortcut available across the application.</li>
+</ol>
+<hr class="manual-hr" />
+<h1 id="table-of-contents">Table of Contents</h1>
+<ul>
+<li><a href="#quick-reference-global-hotkeys">Quick Reference: Global Hotkeys</a></li>
+<li><a href="#part-1-use-cases--workflows">PART 1: Use Cases & Workflows</a></li>
+<li><a href="#1-battlemaps--virtual-tabletop-vtt">1. Battlemaps & Virtual Tabletop (VTT)</a></li>
+<li><a href="#11-how-to-create-a-new-battlemap">1.1 How to Create a New Battlemap</a></li>
+<li><a href="#12-importing-background-images">1.2 Importing Background Images</a></li>
+<li><a href="#13-calibrating--resizing-the-grid">1.3 Calibrating & Resizing the Grid</a></li>
+<li><a href="#14-placing-and-configuring-tokens">1.4 Placing and Configuring Tokens</a></li>
+<li><a href="#15-setting-up-dynamic-fog-of-war--vision">1.5 Setting Up Dynamic Fog of War & Vision</a></li>
+<li><a href="#16-placing-interactive-map-pins-points-of-interest">1.6 Placing Interactive Map Pins (Points of Interest)</a></li>
+<li><a href="#17-running-a-live-battlemap-session">1.7 Running a Live Battlemap Session</a></li>
+<li><a href="#18-using-spell-templates--animated-spell-effects">1.8 Using Spell Templates & Animated Spell Effects</a></li>
+<li><a href="#19-projecting-to-an-external-player-display--tv-table">1.9 Projecting to an External Player Display / TV Table</a></li>
+<li><a href="#2-running-combat-encounters">2. Running Combat Encounters</a></li>
+<li><a href="#21-building-encounters-with-cr-scaling">2.1 Building Encounters with CR Scaling</a></li>
+<li><a href="#22-launching-combat-from-the-encounter-builder-or-battlemap">2.2 Launching Combat from the Encounter Builder or Battlemap</a></li>
+<li><a href="#23-running-turns-rounds-and-initiative">2.3 Running Turns, Rounds, and Initiative</a></li>
+<li><a href="#24-managing-hp-temporary-hp-and-damage-calculation">2.4 Managing HP, Temporary HP, and Damage Calculation</a></li>
+<li><a href="#25-automated-concentration-checks">2.5 Automated Concentration Checks</a></li>
+<li><a href="#26-condition-tracking--duration-countdowns">2.6 Condition Tracking & Duration Countdowns</a></li>
+<li><a href="#27-handling-legendary-actions-lair-actions-and-reactions">2.7 Handling Legendary Actions, Lair Actions, and Reactions</a></li>
+<li><a href="#3-managing-your-campaign--sessions">3. Managing Your Campaign & Sessions</a></li>
+<li><a href="#31-creating--switching-campaigns">3.1 Creating & Switching Campaigns</a></li>
+<li><a href="#32-tracking-calendar-dates-quests-and-faction-reputations">3.2 Tracking Calendar Dates, Quests, and Faction Reputations</a></li>
+<li><a href="#33-organizing-session-notes-with-nested-folders">3.3 Organizing Session Notes with Nested Folders</a></li>
+<li><a href="#34-using-slash-commands--embedding-statblocks-in-notes">3.4 Using Slash Commands & Embedding Statblocks in Notes</a></li>
+<li><a href="#35-embedding-live-interactive-dc-check-cards">3.5 Embedding Live Interactive DC Check Cards</a></li>
+<li><a href="#36-quick-navigation-with-the-radial-menu">3.6 Quick Navigation with the Radial Menu</a></li>
+<li><a href="#37-pinning-frequently-used-content-with-bookmarks">3.7 Pinning Frequently Used Content with Bookmarks</a></li>
+<li><a href="#4-managing-the-party--character-sheets">4. Managing the Party & Character Sheets</a></li>
+<li><a href="#41-managing-the-party-roster--passive-dashboard">4.1 Managing the Party Roster & Passive Dashboard</a></li>
+<li><a href="#42-running-short-and-long-rests">4.2 Running Short and Long Rests</a></li>
+<li><a href="#43-tracking-party-currency-and-group-loot">4.3 Tracking Party Currency and Group Loot</a></li>
+<li><a href="#44-editing-character-sheets-2024--2014-rules">4.4 Editing Character Sheets (2024 / 2014 Rules)</a></li>
+<li><a href="#45-printing--exporting-character-sheets">4.5 Printing & Exporting Character Sheets</a></li>
+<li><a href="#5-creating-characters-with-the-2024-character-builder">5. Creating Characters with the 2024 Character Builder</a></li>
+<li><a href="#51-step-1-origin-species--background">5.1 Step 1: Origin (Species & Background)</a></li>
+<li><a href="#52-step-2-class--subclass-selection">5.2 Step 2: Class & Subclass Selection</a></li>
+<li><a href="#53-step-3-ability-score-generation-standard-array-point-buy-rolling">5.3 Step 3: Ability Score Generation (Standard Array, Point Buy, Rolling)</a></li>
+<li><a href="#54-step-4-class-features--spells">5.4 Step 4: Class Features & Spells</a></li>
+<li><a href="#55-step-5-equipment--narrative-details">5.5 Step 5: Equipment & Narrative Details</a></li>
+<li><a href="#56-step-6-review-validation-and-export-to-party">5.6 Step 6: Review, Validation, and Export to Party</a></li>
+<li><a href="#6-generating-content-on-the-fly">6. Generating Content On-the-Fly</a></li>
+<li><a href="#61-generating-individual--hoard-loot-by-cr">6.1 Generating Individual & Hoard Loot by CR</a></li>
+<li><a href="#62-generating-merchant-shop-inventories">6.2 Generating Merchant Shop Inventories</a></li>
+<li><a href="#63-generating-dynamic-npcs-with-roleplay-hooks">6.3 Generating Dynamic NPCs with Roleplay Hooks</a></li>
+<li><a href="#7-expanding-the-compendium--homebrew-content">7. Expanding the Compendium & Homebrew Content</a></li>
+<li><a href="#71-searching-and-filtering-monsters-spells-items-and-roll-tables">7.1 Searching and Filtering Monsters, Spells, Items, and Roll Tables</a></li>
+<li><a href="#72-creating-custom-homebrew-monsters-spells-and-items">7.2 Creating Custom Homebrew Monsters, Spells, and Items</a></li>
+<li><a href="#73-building-custom-multi-tier-roll-tables">7.3 Building Custom Multi-Tier Roll Tables</a></li>
+<li><a href="#74-adding-custom-sourcebooks--chapters-in-the-handbook">7.4 Adding Custom Sourcebooks & Chapters in the Handbook</a></li>
+<li><a href="#part-2-feature-by-feature-reference">PART 2: Feature-by-Feature Reference</a></li>
+<li><a href="#1-titlebar--application-header">1. Titlebar & Application Header</a></li>
+<li><a href="#2-primary-navigation-sidebar">2. Primary Navigation Sidebar</a></li>
+<li><a href="#3-battlemap-vtt-module">3. Battlemap (VTT) Module</a></li>
+<li><a href="#4-combat-tracker-module">4. Combat Tracker Module</a></li>
+<li><a href="#5-encounter-builder-module">5. Encounter Builder Module</a></li>
+<li><a href="#6-compendium-module">6. Compendium Module</a></li>
+<li><a href="#7-party-management-module">7. Party Management Module</a></li>
+<li><a href="#8-notes--worldbuilding-module">8. Notes & Worldbuilding Module</a></li>
+<li><a href="#9-tools--generators-module">9. Tools & Generators Module</a></li>
+<li><a href="#10-handbook-module">10. Handbook Module</a></li>
+<li><a href="#11-template-manager-module">11. Template Manager Module</a></li>
+<li><a href="#12-global-drawers--overlays">12. Global Drawers & Overlays</a></li>
+<li><a href="#121-dice-tray-drawer-ctrl--d">12.1 Dice Tray Drawer (Ctrl + D)</a></li>
+<li><a href="#122-session-bookmarks-drawer-ctrl--b">12.2 Session Bookmarks Drawer (Ctrl + B)</a></li>
+<li><a href="#123-quick-action-radial-hud-ctrl--space">12.3 Quick Action Radial HUD (Ctrl + Space)</a></li>
+<li><a href="#13-external-display--player-view-system">13. External Display & Player View System</a></li>
+<li><a href="#14-database-snapshots-rollback--backup-system">14. Database Snapshots, Rollback & Backup System</a></li>
+<li><a href="#15-settings--customization">15. Settings & Customization</a></li>
+</ul>
+<hr class="manual-hr" />
+<h1 id="quick-reference-global-hotkeys">Quick Reference: Global Hotkeys</h1>
+<table class="manual-table">
+<thead><tr><th>Shortcut</th><th>Action</th><th>Scope</th></tr></thead>
+<tbody>
+<tr><td><code>Ctrl + Space</code></td><td>Toggle Global Quick-Action Radial Menu</td><td>Global</td></tr>
+<tr><td><code>Ctrl + D</code></td><td>Toggle Global 3D Dice Tray Drawer</td><td>Global</td></tr>
+<tr><td><code>Ctrl + B</code></td><td>Toggle Session Bookmarks Drawer</td><td>Global</td></tr>
+<tr><td><code>Ctrl + F</code></td><td>Focus Search Bar in active view (Compendium/Handbook/Notes)</td><td>Global</td></tr>
+<tr><td><code>Ctrl + S</code></td><td>Force Save Database / Active Note / Entity</td><td>Global</td></tr>
+<tr><td><code>Space</code> + Drag</td><td>Pan across Battlemap Canvas</td><td>VTT</td></tr>
+<tr><td><code>Mouse Wheel</code></td><td>Zoom in / Zoom out on Battlemap</td><td>VTT</td></tr>
+<tr><td><code>Shift</code> + Click/Drag</td><td>Freehand Line / Measurement Ruler</td><td>VTT</td></tr>
+<tr><td><code>Alt</code> + Click</td><td>Quick Ping on Battlemap (visible to external player view)</td><td>VTT</td></tr>
+<tr><td><code>Escape</code></td><td>Close active modal / Clear selection / Dismiss overlay</td><td>Global</td></tr>
+</tbody></table>
+<hr class="manual-hr" />
+<h1 id="part-1-use-cases-workflows">PART 1: Use Cases & Workflows</h1>
+<hr class="manual-hr" />
+<h2 id="1-battlemaps-virtual-tabletop-vtt">1. Battlemaps & Virtual Tabletop (VTT)</h2>
+<p>The Battlemap module transforms Dungeon Daddy into an interactive tabletop. It supports high-resolution image backgrounds, customizable square and hexagonal grids, dynamic fog-of-war with line-of-sight raycasting, interactive compendium-linked pins, token condition/HP tracking, dynamic spell animations, and dual-monitor projector casting.</p>
+<pre><code class="language-">+------------------------------------------------------------------------------------+
+|  [VTT Toolbar] (Select, Move, Fog Brush, Walls, Pins, Ruler, Spell AOE, Ping)      |
++------------------------------------------------------------------------------------+
+|                                                                                    |
+|    +----------------------------------------------------+    +------------------+  |
+|    |                                                    |    | Token Drawer /   |  |
+|    |             Interactive Battlemap Canvas           |    | Map Layers       |  |
+|    |                                                    |    | - Monsters       |  |
+|    |   [Token: Goblin]       (Pin: Secret Door)         |    | - Players        |  |
+|    |          \                  /                      |    | - Map Settings   |  |
+|    |           \________________/                       |    | - Fog Controls   |  |
+|    |                                                    |    +------------------+  |
+|    +----------------------------------------------------+                          |
+|  [VTT Combat HUD: Turn Order, Round Counter, Quick Damage, Concentration Triggers] |
++------------------------------------------------------------------------------------+
+</code></pre>
+<h3 id="11-how-to-create-a-new-battlemap">1.1 How to Create a New Battlemap</h3>
+<ol>
+<li>Click <strong>Battlemaps</strong> in the sidebar navigation (or press <code>Ctrl + Space</code> -> select <strong>Maps</strong>).</li>
+<li>In the top-left map dropdown, click <strong>Manage Maps</strong> or click the <code>+ New Map</code> button.</li>
+<li>In the <strong>Map Manager Modal</strong>:</li>
+</ol>
+<ul>
+<li>Enter a <strong>Map Title</strong> (e.g., <em>"Cragmaw Hideout - Main Cavern"</em>).</li>
+<li>Choose a <strong>Category / Folder</strong> (e.g., <em>Dungeons, Wilderness, Towns, Encounters</em>).</li>
+<li>Set the <strong>Grid Dimensions</strong> in squares (Width × Height, default <code>30 × 20</code>).</li>
+<li>Set the <strong>Grid Cell Size</strong> in pixels (default <code>50px</code>).</li>
+<li>Select the <strong>Grid Type</strong> (<em>Square, Hex Horizontal, Hex Vertical, or Gridless</em>).</li>
+<li>Set default <strong>Grid Color</strong> and <strong>Grid Opacity</strong> (0% to 100%).</li>
+</ul>
+<ol>
+<li>Click <strong>Create Map</strong>. The new canvas opens immediately.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="12-importing-background-images">1.2 Importing Background Images</h3>
+<p>You can set any local image file or web URL as your map background:</p>
+<ol>
+<li>Open your map and click the <strong>Map Settings</strong> (gear icon) or <strong>Map Manager</strong> on the toolbar.</li>
+<li>In the <strong>Background Image</strong> section:</li>
+</ol>
+<ul>
+<li><strong>Local File:</strong> Click <strong>Upload Image / Browse</strong> and select your <code>.jpg</code>, <code>.png</code>, <code>.webp</code>, or <code>.svg</code> file.</li>
+<li><strong>Image URL:</strong> Paste any direct web image link into the <strong>Image URL</strong> field.</li>
+</ul>
+<ol>
+<li>Once loaded, you can adjust:</li>
+</ol>
+<ul>
+<li><strong>Image Offset X / Y</strong>: Shift the background beneath the grid.</li>
+<li><strong>Image Scale / Fit</strong>: Scale the background proportionally or stretch to fill grid dimensions.</li>
+</ul>
+<ol>
+<li>Click <strong>Apply Changes</strong>.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="13-calibrating-resizing-the-grid">1.3 Calibrating & Resizing the Grid</h3>
+<p>When importing a pre-gridded map image, use the <strong>Grid Calibration Tool</strong> to align Dungeon Daddy’s digital grid with the artwork’s printed squares:</p>
+<h4 id="method-a-3-point-calibration-hud-recommended">Method A: 3-Point Calibration HUD (Recommended)</h4>
+<ol>
+<li>Click the <strong>Calibrate Grid</strong> icon on the VTT toolbar.</li>
+<li>The <strong>Grid Calibration HUD</strong> appears at the top of the canvas.</li>
+<li>Click and drag the <strong>3-Point Calibration Box</strong> over any visible 3×3 square section on your map artwork.</li>
+<li>The calibration engine will automatically calculate the exact pixel size per square and adjust the map offset to snap cleanly into place.</li>
+<li>Click <strong>Confirm Calibration</strong>.</li>
+</ol>
+<h4 id="method-b-manual-fine-tuning-modal">Method B: Manual Fine-Tuning Modal</h4>
+<ol>
+<li>Click <strong>Resize / Adjust Grid</strong> in the toolbar.</li>
+<li>Use the interactive sliders or numeric inputs to tweak:</li>
+</ol>
+<ul>
+<li><strong>Cell Size (px)</strong>: Fine-tune in 0.5px increments.</li>
+<li><strong>Horizontal / Vertical Offset (px)</strong>: Nudge the grid along X and Y axes.</li>
+<li><strong>Map Bounds</strong>: Expand or shrink the total width and height in squares without distorting token positions.</li>
+</ul>
+<ol>
+<li>Click <strong>Save Grid Settings</strong>.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="14-placing-and-configuring-tokens">1.4 Placing and Configuring Tokens</h3>
+<p>Tokens represent Player Characters, Monsters, NPCs, and Objects on the grid.</p>
+<ol>
+<li><strong>Adding Player Tokens</strong>: Open the <strong>Tokens / Party</strong> drawer on the right side of the canvas. Drag any player character directly onto a grid cell.</li>
+<li><strong>Adding Monster Tokens</strong>: Open the <strong>Compendium / Monsters</strong> tab within the token drawer. Search for any monster (e.g., <em>"Bugbear"</em> or <em>"Ancient Red Dragon"</em>) and drag it onto the canvas.</li>
+</ol>
+<ul>
+<li>You can add multiple instances; they will automatically be labeled with unique numbers (<em>Bugbear 1, Bugbear 2</em>).</li>
+</ul>
+<ol>
+<li><strong>Configuring Token Properties</strong>: Right-click any token on the map to open the <strong>Token Context Menu</strong>:</li>
+</ol>
+<ul>
+<li><strong>Size</strong>: Change footprint (<em>Tiny [0.5×0.5], Small/Medium [1×1], Large [2×2], Huge [3×3], Gargantuan [4×4+]</em>).</li>
+<li><strong>HP & Temp HP</strong>: View and adjust current/maximum Hit Points.</li>
+<li><strong>Conditions</strong>: Apply D&D 5e status conditions (<em>Blinded, Charmed, Frightened, Invisible, Paralyzed, Poisoned, Prone, Stunned, Unconscious, Exhaustion, etc.</em>) with visual badge rings.</li>
+<li><strong>Elevation</strong>: Set height above or below ground in feet (e.g., <code>+30 ft Flying</code>).</li>
+<li><strong>Visibility</strong>: Toggle <strong>Hidden from Players</strong> (renders the token semi-transparent for the DM and invisible on the Player Display).</li>
+<li><strong>Rotation</strong>: Rotate facing angle.</li>
+<li><strong>Delete</strong>: Remove token from the canvas.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="15-setting-up-dynamic-fog-of-war-vision">1.5 Setting Up Dynamic Fog of War & Vision</h3>
+<p>Dungeon Daddy supports both <strong>Manual Fog Brushes</strong> and <strong>Dynamic Raycast Line-of-Sight (LoS)</strong>:</p>
+<pre><code class="language-">[DM View: Everything Visible]                   [Player View: Fog of War Applied]
++-------------------------------+               +-------------------------------+
+| Token (Goblin)                |               | ############################# |
+| [Wall]-----------------[Wall] |               | ######### (Hidden) ########## |
+|           (Door)              |     ===&gt;      | ############################# |
+|                               |               |                               |
+|        Token (Player)         |               |        Token (Player)         |
++-------------------------------+               +-------------------------------+
+</code></pre>
+<ol>
+<li><strong>Enabling Fog of War</strong>:</li>
+</ol>
+<ul>
+<li>In the VTT toolbar, toggle the <strong>Fog of War</strong> switch to <strong>ON</strong>.</li>
+</ul>
+<ol>
+<li><strong>Dynamic Line of Sight (LoS) & Walls</strong>:</li>
+</ol>
+<ul>
+<li>Select the <strong>Wall Tool</strong> from the toolbar.</li>
+<li>Click to draw wall segments along dungeon walls, columns, and closed barriers.</li>
+<li>Draw <strong>Doors / Portals</strong>: Click the segment and mark it as a <em>Door</em>. In live play, clicking a door instantly toggles it between <em>Open</em> (allows vision/movement) and <em>Closed</em> (blocks vision).</li>
+<li>When a player token moves, the dynamic raycast engine automatically calculates the visible polygon and reveals explored areas.</li>
+</ul>
+<ol>
+<li><strong>Manual Fog Brush Controls</strong>:</li>
+</ol>
+<ul>
+<li><strong>Reveal Brush</strong>: Paint over areas to manually uncover them.</li>
+<li><strong>Hide Brush</strong>: Paint over areas to restore black fog.</li>
+<li><strong>Adjust Brush Size</strong>: Change the brush diameter from 1 to 10 grid squares.</li>
+<li><strong>Reset Fog</strong>: Instantly re-cover the entire map with fog.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="16-placing-interactive-map-pins-points-of-interest">1.6 Placing Interactive Map Pins (Points of Interest)</h3>
+<p>Map Pins allow you to anchor rich DM notes, secrets, monster traps, and compendium links directly onto specific rooms or landmarks:</p>
+<ol>
+<li>Select the <strong>Pin Tool</strong> from the toolbar.</li>
+<li>Click anywhere on the map to open the <strong>Pin Editor Modal</strong>:</li>
+</ol>
+<ul>
+<li><strong>Pin Title</strong>: Enter a name (e.g., <em>"Room 4: The Goblin Armory"</em> or <em>"Chest with Poison Needle Trap"</em>).</li>
+<li><strong>Pin Icon & Color</strong>: Select an icon (<em>Skull, Chest, Book, Trap, Portal, Question Mark, Star</em>) and color-code it.</li>
+<li><strong>Linked Entity</strong>: Attach a <strong>Campaign Note</strong>, <strong>Monster Statblock</strong>, <strong>Item</strong>, <strong>Spell</strong>, or <strong>Roll Table</strong>.</li>
+<li><strong>DM Secret Notes</strong>: Write private text visible only to the DM on hover/click.</li>
+<li><strong>Visibility</strong>: Toggle whether this pin is visible to players on the external display.</li>
+</ul>
+<ol>
+<li><strong>Hover & Click</strong>: Hovering over a pin displays a quick tooltip summary. Clicking it opens the full linked entity (such as the room's campaign note or the monster's statblock) in an instant popover without leaving the map.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="17-running-a-live-battlemap-session">1.7 Running a Live Battlemap Session</h3>
+<p>When running an active combat encounter directly on the battlemap:</p>
+<ol>
+<li><strong>Launch Combat from Map</strong>:</li>
+</ol>
+<ul>
+<li>Click the <strong>Start Encounter from Map</strong> button on the VTT toolbar.</li>
+<li>Dungeon Daddy will automatically detect all player and monster tokens currently on the map, roll or prompt for initiative, and initialize the <strong>VTT Combat HUD</strong>.</li>
+</ul>
+<ol>
+<li><strong>Interactive Turn Flow</strong>:</li>
+</ol>
+<ul>
+<li>The active combatant is highlighted with an animated golden ring on the map.</li>
+<li>The <strong>VTT Combat HUD</strong> displays current initiative order, round number, active turn, and one-click <em>Next Turn / Previous Turn</em> buttons.</li>
+</ul>
+<ol>
+<li><strong>Movement & Path Ruler</strong>:</li>
+</ol>
+<ul>
+<li>Drag any token to move it. A path ruler displays total distance traveled in feet using your configured measurement rules (5-10-5, Euclidean, or Manhattan).</li>
+</ul>
+<ol>
+<li><strong>Quick Damage & Healing</strong>:</li>
+</ol>
+<ul>
+<li>Click on any token's health bar or right-click to apply damage, healing, or temporary HP.</li>
+</ul>
+<ol>
+<li><strong>Live DM Ping</strong>:</li>
+</ol>
+<ul>
+<li>Hold <code>Alt</code> and click anywhere on the canvas to emit an animated ping visible on both DM and player screens.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="18-using-spell-templates-animated-spell-effects">1.8 Using Spell Templates & Animated Spell Effects</h3>
+<p>Dungeon Daddy includes an integrated spell area-of-effect (AoE) visualizer and particle animation engine:</p>
+<pre><code class="language-">[Spell AoE Selector]
+- Circle / Sphere (e.g., 20ft Fireball)
+- Cone (e.g., 60ft Cone of Cold, 15ft Burning Hands)
+- Line (e.g., 100ft Lightning Bolt)
+- Square / Cube (e.g., 15ft Thunderwave)
+- Cylinder / Aura (e.g., 15ft Spirit Guardians)
+</code></pre>
+<ol>
+<li>Select the <strong>Spell AoE Tool</strong> from the toolbar.</li>
+<li>Choose your shape: <strong>Circle/Sphere, Cone, Line, Cube/Square, or Aura</strong>.</li>
+<li>Set the <strong>Radius / Length in feet</strong> (e.g., <code>20 ft</code> for Fireball).</li>
+<li>Hover your mouse over the canvas to preview the template footprint and see exactly which grid squares and tokens are caught inside the blast zone.</li>
+<li>Click to cast: Trigger full animated visual effects (fireballs exploding, lightning bolts arcing, radiant healing bursts) that render across both the DM map and the Player Display.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="19-projecting-to-an-external-player-display-tv-table">1.9 Projecting to an External Player Display / TV Table</h3>
+<p>If you use a secondary monitor, digital TV game table, or projector:</p>
+<ol>
+<li>Click the <strong>Display</strong> icon in the top header or go to <strong>Settings -> External Display</strong>.</li>
+<li>Click <strong>Launch Player Window</strong>.</li>
+<li>A clean, distraction-free window opens. Drag it to your secondary screen and press <code>F11</code> for full screen.</li>
+<li><strong>What Players See</strong>:</li>
+</ol>
+<ul>
+<li>The battlemap rendered in real-time.</li>
+<li>Real-time token movement and dynamic Fog of War (DM-only tokens and secret pins remain hidden).</li>
+<li>Spell AoE animations and DM live pings.</li>
+<li>Active combat tracker banner (monster exact HP can be masked to show descriptive health bars like <em>Healthy, Bloodied, Critical</em>).</li>
+<li>Any handout images, letters, or NPC portraits projected via the <strong>Project Media</strong> button.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="2-running-combat-encounters">2. Running Combat Encounters</h2>
+<p>The Combat module unites the Encounter Builder, Initiative Tracker, 5e 2024 Concentration Engine, and Monster Statblocks into a streamlined combat cockpit.</p>
+<hr class="manual-hr" />
+<h3 id="21-building-encounters-with-cr-scaling">2.1 Building Encounters with CR Scaling</h3>
+<ol>
+<li>Navigate to <strong>Encounters</strong> in the sidebar.</li>
+<li>Click <strong>Create Encounter</strong> and name it (e.g., <em>"Ambush at Wyvern Tor"</em>).</li>
+<li>The <strong>Encounter Builder</strong> calculates difficulty thresholds (<em>Easy, Medium, Hard, Deadly, and Daily XP Budget</em>) based on your active party's character count and levels.</li>
+<li>Use the monster compendium sidebar to search and filter monsters by <strong>Challenge Rating (CR)</strong>, <strong>Creature Type</strong> (<em>Undead, Beast, Fiend, etc.</em>), <strong>Size</strong>, and <strong>Environment</strong>.</li>
+<li>Click <code>+ Add to Encounter</code> on any monster.</li>
+<li>The difficulty gauge updates dynamically:</li>
+</ol>
+<ul>
+<li>Adjust monster counts using <code>+</code> and <code>-</code>.</li>
+<li>The engine automatically calculates Adjusted XP based on encounter group multipliers.</li>
+</ul>
+<ol>
+<li>Click <strong>Save Encounter</strong>.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="22-launching-combat-from-the-encounter-builder-or-battlemap">2.2 Launching Combat from the Encounter Builder or Battlemap</h3>
+<ul>
+<li><strong>From Encounter Builder</strong>: Click <strong>Start Combat</strong> on any saved encounter. The combatants are loaded into the Combat Tracker.</li>
+<li><strong>From Battlemap</strong>: Click <strong>Start Encounter from Map Tokens</strong>.</li>
+<li><strong>From Scratch</strong>: Navigate to <strong>Combat</strong> and click <code>+ Add Combatant</code> to manually add players, monsters, or NPCs.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="23-running-turns-rounds-and-initiative">2.3 Running Turns, Rounds, and Initiative</h3>
+<ol>
+<li><strong>Roll Initiative</strong>: Click <strong>Roll All Monster Initiative</strong> to instantly roll initiative with dexterity modifiers, or enter manual rolls for players.</li>
+<li>Click <strong>Start Combat</strong>. The tracker sorts all combatants in descending initiative order.</li>
+<li>Use the <strong>Next Turn</strong> (<code>Space</code> / <code>→</code>) and <strong>Previous Turn</strong> (<code>←</code>) buttons to cycle through combatants.</li>
+<li>When reaching the top of the order, the <strong>Round Counter</strong> increments automatically.</li>
+<li>All round-based effects, condition timers, and recharge abilities trigger prompt notifications.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="24-managing-hp-temporary-hp-and-damage-calculation">2.4 Managing HP, Temporary HP, and Damage Calculation</h3>
+<p>On any combatant's card:</p>
+<ul>
+<li>Click the <strong>HP Value</strong> to open the <strong>Quick Damage / Heal Calculator</strong>.</li>
+<li>Enter an amount:</li>
+<li>Click <strong>Damage</strong>: Deducts from Temporary HP first, then subtracts remainder from current HP.</li>
+<li>Click <strong>Heal</strong>: Adds to current HP (capped at Max HP).</li>
+<li>Click <strong>Add Temp HP</strong>: Sets temporary hit points (does not stack, replaces if higher).</li>
+<li><strong>Death Saves</strong>: When a player drops to 0 HP, death save failure/success checkboxes appear automatically.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="25-automated-concentration-checks">2.5 Automated Concentration Checks</h3>
+<p>When any spellcaster marked as concentrating takes damage:</p>
+<ol>
+<li>Dungeon Daddy automatically calculates the required <strong>Concentration Save DC</strong>:</li>
+<p>   <code>DC = Math.max(10, Math.floor(damage / 2))</code></p>
+<li>A <strong>Concentration Check Prompt</strong> immediately pops up displaying the DC, spell name, and a <strong>Roll Constitution Save</strong> button.</li>
+<li>If the save succeeds, concentration is maintained. If it fails, the concentration status and associated spell effects are automatically cleared.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="26-condition-tracking-duration-countdowns">2.6 Condition Tracking & Duration Countdowns</h3>
+<ol>
+<li>Click <code>+ Condition</code> on any combatant card.</li>
+<li>Select any 5e condition (<em>e.g., Restrained, Poisoned, Stunned, Blessed</em>).</li>
+<li>Optional: Set a <strong>Duration in Rounds</strong> (e.g., <code>1 Round</code> for Stunning Strike or <code>10 Rounds</code> for 1 minute).</li>
+<li>The tracker will decrement the counter at the start/end of the combatant's turn and automatically remove expired conditions with an alert notification.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="27-handling-legendary-actions-lair-actions-and-reactions">2.7 Handling Legendary Actions, Lair Actions, and Reactions</h3>
+<ul>
+<li><strong>Legendary Actions</strong>: Legendary monsters display interactive action points (e.g., <code>3/3</code>). Click to spend actions between player turns; points automatically reset at the start of the monster's turn.</li>
+<li><strong>Lair Actions</strong>: When enabled, the tracker automatically injects a <strong>Lair Action marker at Initiative Count 20</strong> (losing all initiative ties).</li>
+<li><strong>Reaction Tracker</strong>: Toggle the <em>Reaction Used</em> checkbox when an opportunity attack or Shield spell is cast; resets automatically at the start of their next turn.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="3-managing-your-campaign-sessions">3. Managing Your Campaign & Sessions</h2>
+<hr class="manual-hr" />
+<h3 id="31-creating-switching-campaigns">3.1 Creating & Switching Campaigns</h3>
+<ol>
+<li>Open <strong>Campaign</strong> in the sidebar.</li>
+<li>Click <strong>New Campaign</strong>, enter a name (e.g., <em>"Curse of Strahd"</em>), description, and initial party members.</li>
+<li>Switch active campaigns at any time via the dropdown in the sidebar header. All notes, maps, encounters, and party data isolate cleanly per campaign.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="32-tracking-calendar-dates-quests-and-faction-reputations">3.2 Tracking Calendar Dates, Quests, and Faction Reputations</h3>
+<p>Within the Campaign Overview:</p>
+<ul>
+<li><strong>In-Game Calendar</strong>: Track current year, month, day, and time of day (Dawn, Noon, Dusk, Midnight). Advance days with 1-click rest buttons.</li>
+<li><strong>Quest Tracker</strong>: Organize quests by status (<em>Active, Completed, Failed</em>) with objective checklists and reward notes.</li>
+<li><strong>Faction Reputation</strong>: Track major world factions (e.g., <em>Harpers, Zhentarim, Lords' Alliance</em>) with reputation meters (-100 to +100) and relationship notes.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="33-organizing-session-notes-with-nested-folders">3.3 Organizing Session Notes with Nested Folders</h3>
+<ol>
+<li>Navigate to <strong>Notes</strong> in the sidebar.</li>
+<li>Click <code>+ New Folder</code> to create categories (e.g., <em>Sessions, NPCs, Locations, Lore, Factions</em>).</li>
+<li>Drag and drop notes between folders to maintain a structured campaign hierarchy.</li>
+<li>Pin crucial notes to the top of your tree for instant access during live play.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="34-using-slash-commands-embedding-statblocks-in-notes">3.4 Using Slash Commands & Embedding Statblocks in Notes</h3>
+<p>The rich note editor supports markdown and interactive <code>/</code> slash commands. While typing in any note:</p>
+<pre><code class="language-">Type "/" to insert:
+- /monster    -&gt; Embed interactive Monster Statblock
+- /spell      -&gt; Embed searchable Spell Card
+- /item       -&gt; Embed Item Card with rarity &amp; attunement
+- /table      -&gt; Embed Live Roll Table with one-click roll button
+- /check      -&gt; Embed Live Interactive Party DC Check Card
+- /image      -&gt; Embed image gallery or player handout
+- /spoiler    -&gt; Create DM Secret block (collapsible)
+- /callout    -&gt; Create styled Warning / Tip / Lore callout
+</code></pre>
+<ul>
+<li><strong>Entity Auto-Linking</strong>: Type <code>@</code> or <code>[[</code> followed by any monster, spell, item, or note name (e.g., <code>[[Goblin Boss]]</code> or <code>[[Fireball]]</code>) to create an instant clickable link that opens a hover preview tooltip.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="35-embedding-live-interactive-dc-check-cards">3.5 Embedding Live Interactive DC Check Cards</h3>
+<p>When planning traps, puzzles, or environmental hazards:</p>
+<ol>
+<li>Type <code>/check</code> or click <strong>Insert DC Check</strong> in the note toolbar.</li>
+<li>Configure the card:</li>
+</ol>
+<ul>
+<li><strong>Check Name</strong>: e.g., <em>"Spotting the Tripwire"</em>.</li>
+<li><strong>Skill / Saving Throw</strong>: e.g., <em>Wisdom (Perception)</em> or <em>Dexterity Save</em>.</li>
+<li><strong>Difficulty Class (DC)</strong>: e.g., <code>DC 15</code>.</li>
+<li><strong>Success / Failure Outcomes</strong>: Outline narrative consequences.</li>
+</ul>
+<ol>
+<li>During the session, the embedded card displays every active party member with their specific skill modifier and a 1-click <strong>Roll for Player</strong> button that instantly compares against the DC.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="36-quick-navigation-with-the-radial-menu">3.6 Quick Navigation with the Radial Menu</h3>
+<p>Press <code>Ctrl + Space</code> anywhere in Dungeon Daddy to trigger the <strong>Radial Quick-Action HUD</strong>:</p>
+<ul>
+<li>Move your cursor in any direction to instantly jump to <strong>Maps, Combat, Compendium, Notes, Party, Dice Tray, or Handbook</strong>.</li>
+<li>Quick Search: Type immediately to search the compendium without lifting your hands from the keyboard.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="37-pinning-frequently-used-content-with-bookmarks">3.7 Pinning Frequently Used Content with Bookmarks</h3>
+<p>Press <code>Ctrl + B</code> to open the <strong>Bookmarks Drawer</strong>:</p>
+<ul>
+<li>Click the <strong>Bookmark Icon</strong> on any Monster, Spell, Item, Rule Chapter, Note, or Map to pin it.</li>
+<li>Organize bookmarks by custom tags (e.g., <em>"Session 12 Boss"</em>, <em>"Tavern Rules"</em>, <em>"Loot"</em>).</li>
+<li>Instant 1-click access to all pinned entities during active gameplay.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="4-managing-the-party-character-sheets">4. Managing the Party & Character Sheets</h2>
+<hr class="manual-hr" />
+<h3 id="41-managing-the-party-roster-passive-dashboard">4.1 Managing the Party Roster & Passive Dashboard</h3>
+<p>Navigate to <strong>Party</strong> to view the active party dashboard:</p>
+<ul>
+<li><strong>Passive Stat Hub</strong>: View all players' <strong>Passive Perception, Passive Insight, Passive Investigation, and Passive Stealth</strong> in a single glance.</li>
+<li><strong>Vitality Meters</strong>: Monitor current HP, Max HP, Temp HP, Armor Class (AC), Spell Save DC, and Inspiration tokens.</li>
+<li><strong>Add Character</strong>: Click <code>+ New Character</code> to build a character via the wizard or manually import a character JSON.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="42-running-short-and-long-rests">4.2 Running Short and Long Rests</h3>
+<ul>
+<li><strong>Short Rest</strong>:</li>
+<li>Click <strong>Short Rest</strong> on the party dashboard or an individual character sheet.</li>
+<li>Spends available Hit Dice to recover HP.</li>
+<li>Recharges short-rest features (e.g., Warlock Pact Slots, Fighter Action Surge, Monk Focus Points).</li>
+<li><strong>Long Rest</strong>:</li>
+<li>Click <strong>Long Rest</strong>.</li>
+<li>Restores full HP to all characters.</li>
+<li>Recovers spent Hit Dice (up to half of total level).</li>
+<li>Resets all spell slots, daily features, and reduces Exhaustion level by 1.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="43-tracking-party-currency-and-group-loot">4.3 Tracking Party Currency and Group Loot</h3>
+<ol>
+<li>Open the <strong>Party Inventory & Currency</strong> tab.</li>
+<li><strong>Currency Pool</strong>: Manage shared Copper (CP), Silver (SP), Electrum (EP), Gold (GP), and Platinum (PP).</li>
+<li><strong>Split Currency</strong>: Click <strong>Split Evenly</strong> to divide total loot across all active party members automatically.</li>
+<li><strong>Group Bag of Holding</strong>: Store unassigned party loot, quest items, and identify item values and total carrying weight.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="44-editing-character-sheets-2024-2014-rules">4.4 Editing Character Sheets (2024 / 2014 Rules)</h3>
+<p>Click on any party member to open their complete character sheet:</p>
+<ul>
+<li><strong>Core Attributes</strong>: Ability scores with automatic modifier calculations, saving throw proficiencies, skill proficiencies, and expertise.</li>
+<li><strong>Combat Tab</strong>: AC, Initiative bonus, Walking/Flying/Swimming speeds, Hit Points, Hit Dice tracker, and Death Saves.</li>
+<li><strong>Spellcasting Hub</strong>: Spell slots tracker (Level 1–9), Cantrips, Prepared Spells, Spell Attack Bonus, and Spell Save DC. Click any spell to view full rules or roll directly.</li>
+<li><strong>Inventory & Attunement</strong>: Track equipped weapons, armor, magical items, weight/encumbrance, and 3 attunement slots.</li>
+<li><strong>Features & Traits</strong>: Species traits, class features, subclass abilities, and custom feats.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="45-printing-exporting-character-sheets">4.5 Printing & Exporting Character Sheets</h3>
+<ol>
+<li>Open the character sheet and click the <strong>Print / Export</strong> icon in the header.</li>
+<li>Select your print format:</li>
+</ol>
+<ul>
+<li><strong>Official 5e Printable Sheet</strong> (clean 2-page or 3-page layout).</li>
+<li><strong>Compact DM Summary Card</strong> (pocket statblock for DM screens).</li>
+</ul>
+<ol>
+<li>Click <strong>Print / Save as PDF</strong>.</li>
+</ol>
+<hr class="manual-hr" />
+<h2 id="5-creating-characters-with-the-2024-character-builder">5. Creating Characters with the 2024 Character Builder</h2>
+<p>The integrated Character Creator guides players and DMs through the complete 6-step D&D 2024 ruleset:</p>
+<pre><code class="language-">[Step 1: Origin]   --&gt;  [Step 2: Class]    --&gt;  [Step 3: Ability Scores]
+(Species &amp; Background)  (Class &amp; Subclass)      (Standard Array / Point Buy / Roll)
+       |                        |                              |
+       v                        v                              v
+[Step 4: Features]  --&gt; [Step 5: Equipment] --&gt; [Step 6: Review &amp; Save]
+(Spells &amp; Feats)        (Weapons, Packs, Gold)  (Final Validation &amp; Add to Party)
+</code></pre>
+<hr class="manual-hr" />
+<h3 id="51-step-1-origin-species-background">5.1 Step 1: Origin (Species & Background)</h3>
+<ul>
+<li>Select your <strong>Species</strong> (e.g., <em>Human, Elf, Dwarf, Dragonborn, Tiefling, Halfling, Gnome, Orc, Goliath, Aasimar</em>).</li>
+<li>Select your <strong>2024 Background</strong> (e.g., <em>Acolyte, Criminal, Guard, Guide, Noble, Sage, Sailor, Soldier, Wayfarer</em>).</li>
+<li>Backgrounds automatically assign:</li>
+<li>Three Ability Score bonuses (+2/+1 or +1/+1/+1).</li>
+<li>Origin Feat (e.g., <em>Alert, Magic Initiate, Tough, Lucky, Crafter</em>).</li>
+<li>Skill and tool proficiencies.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="52-step-2-class-subclass-selection">5.2 Step 2: Class & Subclass Selection</h3>
+<ul>
+<li>Choose any core 2024 class (<em>Barbarian, Bard, Cleric, Druid, Fighter, Monk, Paladin, Ranger, Rogue, Sorcerer, Warlock, Wizard</em>).</li>
+<li>Select starting level (1 to 20).</li>
+<li>Select your <strong>Subclass</strong> (available at level 3, or customized for homebrew).</li>
+<li>Select primary armor and weapon proficiencies.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="53-step-3-ability-score-generation-standard-array-point-buy-rolling">5.3 Step 3: Ability Score Generation (Standard Array, Point Buy, Rolling)</h3>
+<p>Choose your preferred generation method:</p>
+<ul>
+<li><strong>Standard Array</strong>: Assign <code>15, 14, 13, 12, 10, 8</code> across Strength, Dexterity, Constitution, Intelligence, Wisdom, Charisma.</li>
+<li><strong>Point Buy</strong>: Spend 27 points with interactive up/down controls and real-time cost calculation.</li>
+<li><strong>Roll Scores</strong>: Interactive 3D rolling for <code>4d6 drop lowest</code> with one-click rerolls.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="54-step-4-class-features-spells">5.4 Step 4: Class Features & Spells</h3>
+<ul>
+<li>Configure starting class choices (e.g., Fighter Fighting Style, Rogue Expertise).</li>
+<li>Choose starting <strong>Cantrips</strong> and <strong>Prepared Spells</strong> from the integrated 2024 spellbook with level and school filters.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="55-step-5-equipment-narrative-details">5.5 Step 5: Equipment & Narrative Details</h3>
+<ul>
+<li>Choose starting equipment packages or take starting gold to purchase equipment.</li>
+<li>Fill in character name, alignment, gender, physical description, personality traits, ideals, bonds, and flaws.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="56-step-6-review-validation-and-export-to-party">5.6 Step 6: Review, Validation, and Export to Party</h3>
+<ul>
+<li>Review the interactive summary sheet. The validation engine flags missing choices or invalid score allocations.</li>
+<li>Click <strong>Save & Add to Party</strong> to instantly generate the character sheet and party token.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="6-generating-content-on-the-fly">6. Generating Content On-the-Fly</h2>
+<hr class="manual-hr" />
+<h3 id="61-generating-individual-hoard-loot-by-cr">6.1 Generating Individual & Hoard Loot by CR</h3>
+<ol>
+<li>Open <strong>Tools -> Loot Generator</strong>.</li>
+<li>Select your loot type:</li>
+</ol>
+<ul>
+<li><strong>Individual Treasure</strong>: Fast pocket loot for single monsters based on CR (0-4, 5-10, 11-16, 17+).</li>
+<li><strong>Hoard Treasure</strong>: Dungeon hoard containing coins, valuable gemstones, art objects, and rolling on Magic Item Tables A through I.</li>
+</ul>
+<ol>
+<li>Click <strong>Generate Loot</strong>.</li>
+<li>Results can be edited, copied as markdown, or sent directly to the <strong>Party Currency / Inventory Pool</strong> with 1 click.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="62-generating-merchant-shop-inventories">6.2 Generating Merchant Shop Inventories</h3>
+<ol>
+<li>In the Loot Generator, switch to the <strong>Shop Generator</strong> tab.</li>
+<li>Choose a shop type (<em>Blacksmith, Magic Emporium, General Store, Alchemist/Apothecary, Fletcher, Temple</em>).</li>
+<li>Set the settlement size (<em>Village, Town, City, Metropolis</em>) and price markup/discount.</li>
+<li>Click <strong>Generate Shop</strong>. Items are automatically populated with stock quantities, descriptions, and adjusted gold prices.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="63-generating-dynamic-npcs-with-roleplay-hooks">6.3 Generating Dynamic NPCs with Roleplay Hooks</h3>
+<ol>
+<li>Open <strong>Tools -> NPC Generator</strong>.</li>
+<li>Select race, gender, and archetype (or leave as <em>Random</em>).</li>
+<li>Click <strong>Generate NPC</strong> to instantly create:</li>
+</ol>
+<ul>
+<li>Name and Pronunciation.</li>
+<li>Physical appearance, clothing, and notable quirks.</li>
+<li>Personality traits, ideals, bonds, and hidden flaws/secrets.</li>
+<li>Dialogue hooks and motivation.</li>
+<li>Mini combat statblock (AC, HP, basic attacks).</li>
+</ul>
+<ol>
+<li>Click <strong>Save as Compendium NPC</strong> or <strong>Insert into Current Note</strong>.</li>
+</ol>
+<hr class="manual-hr" />
+<h2 id="7-expanding-the-compendium-homebrew-content">7. Expanding the Compendium & Homebrew Content</h2>
+<hr class="manual-hr" />
+<h3 id="71-searching-and-filtering-monsters-spells-items-and-roll-tables">7.1 Searching and Filtering Monsters, Spells, Items, and Roll Tables</h3>
+<p>Navigate to <strong>Compendium</strong> in the sidebar:</p>
+<ul>
+<li><strong>Monsters</strong>: Filter by CR (0 to 30), Creature Type, Size, and Search keyword. Click any monster to open the interactive statblock with rollable actions and spell links.</li>
+<li><strong>Spells</strong>: Filter by Class, Level (Cantrip to 9th), School of Magic, Concentration, and Ritual tags.</li>
+<li><strong>Items</strong>: Filter by Item Category (<em>Weapon, Armor, Wondrous, Potion, Ring, Scroll, Wand</em>), Rarity (<em>Common to Artifact</em>), and Attunement requirement.</li>
+<li><strong>Roll Tables</strong>: Browse tables for random encounters, wild magic surges, trinkets, tavern menus, and dungeon weather.</li>
+</ul>
+<hr class="manual-hr" />
+<h3 id="72-creating-custom-homebrew-monsters-spells-and-items">7.2 Creating Custom Homebrew Monsters, Spells, and Items</h3>
+<ol>
+<li>In the Compendium, click <code>+ New Monster</code>, <code>+ New Spell</code>, or <code>+ New Item</code>.</li>
+<li>The <strong>Entity Editor Modal</strong> provides full schema validation:</li>
+</ol>
+<ul>
+<li><strong>Monsters</strong>: Configure AC, HP formulas, speeds, ability scores, damage resistances/immunities, condition immunities, senses, languages, CR, traits, actions, bonus actions, reactions, and legendary actions.</li>
+<li><strong>Spells</strong>: Set level, school, casting time, range, components (V, S, M with gold cost), duration, concentration/ritual tags, and scaling damage formulas.</li>
+<li><strong>Items</strong>: Set rarity, item type, weight, gold cost, attunement, stat modifiers, and magic properties.</li>
+</ul>
+<ol>
+<li>Click <strong>Save Homebrew</strong>. Your custom creations appear seamlessly alongside official SRD content with custom homebrew badges.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="73-building-custom-multi-tier-roll-tables">7.3 Building Custom Multi-Tier Roll Tables</h3>
+<ol>
+<li>In Compendium, open the <strong>Roll Tables</strong> tab and click <code>+ New Table</code>.</li>
+<li>Enter Table Title, Description, and Dice Formula (e.g., <code>1d20</code> or <code>1d100</code>).</li>
+<li>Add rows with range values (<em>Min-Max</em>), result text, and optional <strong>Nested Sub-Table Links</strong> (e.g., rolling a 20 rolls on a legendary sub-table).</li>
+<li>Click <strong>Test Roll</strong> to verify table probabilities, then click <strong>Save Table</strong>.</li>
+</ol>
+<hr class="manual-hr" />
+<h3 id="74-adding-custom-sourcebooks-chapters-in-the-handbook">7.4 Adding Custom Sourcebooks & Chapters in the Handbook</h3>
+<ol>
+<li>Navigate to <strong>Handbook</strong> in the sidebar.</li>
+<li>Click <code>+ Add Custom Book</code> to create your own campaign setting guide, homebrew expansion, or house rules compendium.</li>
+<li>Click <code>+ Add Chapter</code> to write markdown chapters with rich tables, callouts, and illustrations.</li>
+</ol>
+<hr class="manual-hr" />
+<h1 id="part-2-feature-by-feature-reference">PART 2: Feature-by-Feature Reference</h1>
+<hr class="manual-hr" />
+<h2 id="1-titlebar-application-header">1. Titlebar & Application Header</h2>
+<p>The top application bar provides system controls, active session status, and instant tool triggers:</p>
+<ul>
+<li><strong>Active Campaign Indicator</strong>: Displays current active campaign name with quick-switch dropdown.</li>
+<li><strong>Global Search (<code>Ctrl + F</code>)</strong>: Universal search indexing monsters, spells, items, rules, and notes.</li>
+<li><strong>Projector / External Display Button</strong>: Launches or manages the secondary player window.</li>
+<li><strong>Quick Dice Tray Button (<code>Ctrl + D</code>)</strong>: Opens the 3D dice drawer overlay.</li>
+<li><strong>Bookmarks Drawer Button (<code>Ctrl + B</code>)</strong>: Opens the session bookmark drawer.</li>
+<li><strong>Database Status Indicator</strong>: Displays live save state and snapshot point count. Click to open the <strong>Database Rollback Modal</strong>.</li>
+<li><strong>Window Controls</strong>: Frameless Minimize, Maximize/Restore, and Close buttons.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="2-primary-navigation-sidebar">2. Primary Navigation Sidebar</h2>
+<p>The left sidebar switches between the core modules of Dungeon Daddy:</p>
+<ul>
+<li><strong>Compendium</strong>: Browse, search, and edit Monsters, NPCs, Spells, Items, and Roll Tables.</li>
+<li><strong>Party</strong>: Character sheets, party passive stats, rest manager, and currency ledger.</li>
+<li><strong>Notes</strong>: Hierarchical markdown worldbuilding and session notes editor.</li>
+<li><strong>Encounters</strong>: CR-based encounter builder and difficulty calculator.</li>
+<li><strong>Combat Tracker</strong>: Initiative order, HP tracking, condition timers, and concentration engine.</li>
+<li><strong>Battlemaps (VTT)</strong>: Virtual tabletop canvas with dynamic fog of war, tokens, and spell templates.</li>
+<li><strong>Tools</strong>: Character Creator (2024), Loot Generator, Shop Generator, and NPC Generator.</li>
+<li><strong>Handbook</strong>: Official 2024 Player's Handbook, DMG rules reference, and custom homebrew books.</li>
+<li><strong>Templates</strong>: Custom statblock and sheet styling template engine.</li>
+<li><strong>Settings</strong>: Audio, visual themes, measurement rules, hotkeys, and data backups.</li>
+<li><strong>Collapse / Expand Toggle</strong>: Minimizes sidebar to slim icon rail.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="3-battlemap-vtt-module">3. Battlemap (VTT) Module</h2>
+<h3 id="canvas-controls">Canvas Controls</h3>
+<ul>
+<li><strong>Pan</strong>: Hold <code>Space</code> and drag, or use Middle Mouse Click and drag.</li>
+<li><strong>Zoom</strong>: Scroll Mouse Wheel, or use the on-screen <code>+</code> / <code>-</code> zoom controls.</li>
+<li><strong>Grid Calibration HUD</strong>: Interactive 3-point calibration box to match image artwork grids.</li>
+</ul>
+<h3 id="toolbar-tools">Toolbar Tools</h3>
+<ol>
+<li><strong>Select / Move Tool</strong>: Select and drag tokens, measure movement distances.</li>
+<li><strong>Fog of War Brush</strong>:</li>
+</ol>
+<ul>
+<li><em>Reveal Mode</em>: Erases fog to expose map.</li>
+<li><em>Hide Mode</em>: Restores black fog.</li>
+<li><em>Brush Size Slider</em>: Scales brush radius from 1 to 10 grid units.</li>
+<li><em>Reset Fog</em>: Re-covers map in complete fog.</li>
+</ul>
+<ol>
+<li><strong>Wall & Door Tool (Dynamic Line-of-Sight)</strong>:</li>
+</ol>
+<ul>
+<li>Click to place vision-blocking wall segments.</li>
+<li>Click wall segments to convert into clickable doors (Open / Closed).</li>
+</ul>
+<ol>
+<li><strong>Pin Tool</strong>: Place points of interest linked to notes, monsters, items, or secret DM text.</li>
+<li><strong>Measurement Ruler Tool</strong>: Measure point-to-point and waypoint distances in feet.</li>
+<li><strong>Spell AoE Visualizer</strong>: Render interactive circles, cones, lines, cubes, and aura templates.</li>
+<li><strong>Live Ping (<code>Alt + Click</code>)</strong>: Pulse animated visual beacon on DM and player screens.</li>
+<li><strong>Drawing Tool</strong>: Freehand lines, rectangles, and circles with custom color picker.</li>
+</ol>
+<h3 id="token-features">Token Features</h3>
+<ul>
+<li>Token scaling: Tiny (0.5×0.5), Medium (1×1), Large (2×2), Huge (3×3), Gargantuan (4×4+).</li>
+<li>Health bars, temporary HP rings, condition badges, elevation tags, rotation wheels.</li>
+<li>Token visibility toggle (DM secret vs Player visible).</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="4-combat-tracker-module">4. Combat Tracker Module</h2>
+<ul>
+<li><strong>Initiative Order Display</strong>: Descending sort with drag-and-drop reordering.</li>
+<li><strong>Round & Turn Counter</strong>: Automatic round progression with notification triggers.</li>
+<li><strong>Quick Damage / Heal Modal</strong>: One-click arithmetic for HP, Temp HP, and Maximum HP changes.</li>
+<li><strong>Automated Concentration Engine</strong>: Calculates DC on damage taken (<code>max(10, floor(damage/2))</code>) with one-click saving throws and auto-clearing.</li>
+<li><strong>Condition Tracker</strong>: 5e status effects with round duration timers and automatic expiration.</li>
+<li><strong>Death Save Tracker</strong>: 3 success and 3 failure checkboxes for downed players.</li>
+<li><strong>Legendary & Lair Actions</strong>: Point counters and initiative 20 lair triggers.</li>
+<li><strong>Reaction Tracker</strong>: Per-round reaction toggles with start-of-turn reset.</li>
+<li><strong>Combat Log</strong>: Chronological audit trail of all attacks, rolls, damage, and conditions.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="5-encounter-builder-module">5. Encounter Builder Module</h2>
+<ul>
+<li><strong>XP & Difficulty Budget</strong>: Live calculation of Easy, Medium, Hard, and Deadly thresholds based on active party composition.</li>
+<li><strong>Daily XP Budget Meter</strong>: Tracks total adventuring day resource drain.</li>
+<li><strong>Monster Browser Sidebar</strong>: Filterable bestiary with instant add buttons.</li>
+<li><strong>Group Multiplier Engine</strong>: Applies official 5e encounter size multipliers to calculate Adjusted XP.</li>
+<li><strong>Save / Load Templates</strong>: Store reusable encounter templates (e.g., <em>"4× Goblin + 1× Goblin Boss"</em>).</li>
+<li><strong>One-Click Launch</strong>: Transfers encounter directly to the Combat Tracker or Battlemap.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="6-compendium-module">6. Compendium Module</h2>
+<ul>
+<li><strong>Bestiary Tab</strong>: Complete SRD & 2024 monster database with clickable attack rolls and spell slots.</li>
+<li><strong>Spellbook Tab</strong>: Complete spell list filterable by Class, Level (Cantrip–9th), School, Concentration, and Ritual.</li>
+<li><strong>Armory & Magic Items Tab</strong>: Weapons, armor, wondrous items, potions, scrolls, and artifacts with rarity filters.</li>
+<li><strong>Roll Tables Tab</strong>: Interactive dice tables with nested sub-table capabilities.</li>
+<li><strong>Entity Editor</strong>: Full modal editor to build and export custom homebrew entities.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="7-party-management-module">7. Party Management Module</h2>
+<ul>
+<li><strong>Passive Stat Dashboard</strong>: Centralized Passive Perception, Insight, Investigation, and Stealth monitors.</li>
+<li><strong>Rest Engine</strong>: Automated Short Rest (hit dice expenditure, feature recharge) and Long Rest (full recovery, hit dice recovery, exhaustion reduction).</li>
+<li><strong>Party Ledger & Bag of Holding</strong>: Shared currency pool (CP/SP/EP/GP/PP), automatic split calculator, and group loot inventory.</li>
+<li><strong>Character Sheet View</strong>: Complete 2024 / 2014 character sheets with spell slots, feature lists, inventory, and printable export.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="8-notes-worldbuilding-module">8. Notes & Worldbuilding Module</h2>
+<ul>
+<li><strong>Hierarchical Folder Tree</strong>: Drag-and-drop organization for campaign notes, session logs, NPCs, and locations.</li>
+<li><strong>Slash Commands (<code>/</code>)</strong>: Quick insert menu for statblocks, spell cards, item cards, roll tables, DC check cards, and media.</li>
+<li><strong>Entity Auto-Linking (<code>@</code> / <code>[[</code>)</strong>: Mention any compendium entity or note for instant hover preview cards.</li>
+<li><strong>Interactive DC Check Cards</strong>: Live skill check widgets with one-click party rolling.</li>
+<li><strong>Player Projection</strong>: 1-click button to project letters, clues, maps, and illustrations to the player display.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="9-tools-generators-module">9. Tools & Generators Module</h2>
+<ul>
+<li><strong>2024 Character Builder</strong>: 6-step guided wizard for Origin, Class, Ability Scores, Features, Equipment, and Review.</li>
+<li><strong>Loot Generator</strong>: CR-based individual treasure, hoard treasure, and magic item tables.</li>
+<li><strong>Shop Generator</strong>: Dynamic merchant inventory generator with settlement scaling and price multipliers.</li>
+<li><strong>NPC Generator</strong>: On-the-fly NPC creation with race, appearance, personality, quirks, ideals, bonds, flaws, and mini statblocks.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="10-handbook-module">10. Handbook Module</h2>
+<ul>
+<li><strong>Official Rulebooks</strong>: Searchable Player's Handbook (2024) and DMG rules with chapter tree navigation.</li>
+<li><strong>Keyword Highlighting & Search</strong>: Fast text filtering with instant jump-to-section.</li>
+<li><strong>Custom Homebrew Books</strong>: Build custom sourcebooks and chapters for house rules and campaign settings.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="11-template-manager-module">11. Template Manager Module</h2>
+<ul>
+<li><strong>Statblock Customizer</strong>: Modify visual styling, fonts, and layouts for monster statblocks and cards.</li>
+<li><strong>Character Sheet Themes</strong>: Choose between Classic Parchment, Modern Dark, and Minimalist Print styles.</li>
+<li><strong>Template Reset</strong>: Restore default templates with a single click.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="12-global-drawers-overlays">12. Global Drawers & Overlays</h2>
+<h3 id="121-dice-tray-drawer-ctrl-d">12.1 Dice Tray Drawer (<code>Ctrl + D</code>)</h3>
+<ul>
+<li><strong>Polyhedral Dice</strong>: 3D physics-based rolling for d4, d6, d8, d10, d12, d20, and d100.</li>
+<li><strong>Formula Builder</strong>: Custom expression evaluation (e.g., <code>4d6kh3 + 3</code>, <code>8d6 + 5</code>).</li>
+<li><strong>Advantage / Disadvantage Toggles</strong>: One-click modifier toggles.</li>
+<li><strong>Roll History</strong>: Persistent session log of all player and DM rolls.</li>
+<li><strong>Secret DM Rolls</strong>: Roll dice hidden from the player view.</li>
+</ul>
+<h3 id="122-session-bookmarks-drawer-ctrl-b">12.2 Session Bookmarks Drawer (<code>Ctrl + B</code>)</h3>
+<ul>
+<li>Instant access to pinned Monsters, Spells, Items, Notes, Rules, and Map Pins.</li>
+<li>Custom tag filtering and one-click quick-open.</li>
+</ul>
+<h3 id="123-quick-action-radial-hud-ctrl-space">12.3 Quick Action Radial HUD (<code>Ctrl + Space</code>)</h3>
+<ul>
+<li>Radial mouse navigation for lightning-fast module switching.</li>
+<li>Integrated quick search bar for compendium lookup during active combat.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="13-external-display-player-view-system">13. External Display & Player View System</h2>
+<ul>
+<li><strong>Secondary Monitor Output</strong>: Clean, full-screen player window for TV tables and projectors.</li>
+<li><strong>Synchronized Fog of War</strong>: Reveals only areas explored by player tokens in real time.</li>
+<li><strong>Masked Combat Tracker</strong>: Shows initiative turn order and visual health bars (<em>Healthy, Injured, Bloodied, Critical</em>) while hiding DM notes and exact monster HP.</li>
+<li><strong>Media Projector</strong>: Cast illustrations, puzzle handouts, NPC portraits, and letters with smooth fade-in animations.</li>
+<li><strong>Spell AoE & Ping Sync</strong>: Displays DM pings and spell animations in real time.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="14-database-snapshots-rollback-backup-system">14. Database Snapshots, Rollback & Backup System</h2>
+<ul>
+<li><strong>Automatic Snapshots</strong>: System automatically creates recovery snapshots before major imports or bulk edits.</li>
+<li><strong>Manual Snapshots</strong>: Create named restore points before crucial campaign sessions.</li>
+<li><strong>Point-in-Time Rollback Modal</strong>: Inspect snapshot timestamps, entity counts, and restore previous states with 1 click.</li>
+<li><strong>Full JSON Export / Import</strong>: Backup entire campaign database or transfer to other devices.</li>
+</ul>
+<hr class="manual-hr" />
+<h2 id="15-settings-customization">15. Settings & Customization</h2>
+<ul>
+<li><strong>Theme & Appearance</strong>: Dark fantasy, midnight slate, and high-contrast color palettes.</li>
+<li><strong>Measurement Rules</strong>: Configure grid measurement between D&D 5e Standard (5-10-5), Euclidean, or Chebyshev (Manhattan).</li>
+<li><strong>Sound Effects</strong>: Toggle audio triggers for dice rolls, turn transitions, and spell animations.</li>
+<li><strong>Storage & Cloud Sync</strong>: Monitor local IndexedDB/Electron file storage usage and configure backups.</li>
+<li><strong>Keyboard Shortcuts</strong>: View and customize global hotkey bindings.</li>
+</ul>
+<hr class="manual-hr" />
+<p><em>Dungeon Daddy is built for Dungeon Masters who value speed, precision, and immersive storytelling. Roll high!</em></p>
+
+</div>
+
+</body>
+</html>

@@ -14,6 +14,7 @@ import {
 import { MonsterEntity, MonsterAction, MonsterTrait } from '../../types/monster';
 import { useApp } from '../../context/AppContext';
 import { TokenAvatar } from '../common/TokenAvatar';
+import { BookmarkButton } from '../bookmarks/BookmarkButton';
 
 interface MonsterStatBlockProps {
   monster: MonsterEntity;
@@ -121,6 +122,18 @@ export const MonsterStatBlock: React.FC<MonsterStatBlockProps> = ({
         </div>
 
         <div className="flex items-center space-x-2">
+          <BookmarkButton
+            type={monster.isNpc ? 'npc' : 'monster'}
+            targetId={monster.id}
+            title={monster.name}
+            subtitle={`${monster.size} ${monster.monsterType} • CR ${monster.challengeRating}`}
+            category={monster.isNpc ? 'NPC' : 'Monster'}
+            imageUrl={monster.avatarUrl || monster.imageUrl || monster.tokenUrl}
+            campaignId={monster.campaignId}
+            showText
+            size="md"
+          />
+
           {(monster.avatarUrl || monster.tokenUrl) && (
             <button
               onClick={() => {

@@ -26,6 +26,7 @@ import {
 import { VttTool } from './MapCanvas';
 import { BattleMapEntity } from '../../types/map';
 import { useApp } from '../../context/AppContext';
+import { BookmarkButton } from '../bookmarks/BookmarkButton';
 
 interface VttToolbarProps {
   activeTool: VttTool;
@@ -347,6 +348,17 @@ export const VttToolbar: React.FC<VttToolbarProps> = ({
       </div>
 
       <div className="h-5 w-px bg-surface-border mx-1" />
+
+      {/* Bookmark Battle Map */}
+      <BookmarkButton
+        type="map"
+        targetId={map.id}
+        title={map.name}
+        subtitle={`Battle Map (${map.width || 2000}x${map.height || 2000}px)`}
+        category="Battle Map"
+        imageUrl={map.imageUrl}
+        size="md"
+      />
 
       {/* Grid Settings Modal Trigger */}
       <button

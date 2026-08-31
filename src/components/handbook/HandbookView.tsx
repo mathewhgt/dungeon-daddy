@@ -127,7 +127,9 @@ export const HandbookView: React.FC = () => {
     deleteCustomBackground,
     deleteCustomSpecies,
     handbookTarget,
-    setHandbookTarget
+    setHandbookTarget,
+    toggleBookmark,
+    isBookmarked: isGlobalBookmarked
   } = useApp();
 
   const customBooks = db.customBooks || [];
@@ -288,7 +290,17 @@ export const HandbookView: React.FC = () => {
   const handleBookmarkToggle = (id: string) => {
     const updated = toggleHandbookBookmark(id);
     setBookmarks(updated);
-    showToast(updated.includes(id) ? 'Bookmarked section' : 'Removed bookmark');
+    toggleBookmark({
+      type: 'rule',
+      targetId: id,
+      title: currentChapter?.title || id,
+      subtitle: `Handbook Rule • ${currentBook?.title || "Player's Handbook"}`,
+      category: 'Rule',
+      metadata: {
+        bookId: selectedBookId,
+        chapterId: id,
+      },
+    });
   };
 
   const handleCopySection = () => {

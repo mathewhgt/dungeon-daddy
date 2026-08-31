@@ -30,6 +30,8 @@ import { DEFAULT_TEMPLATES } from '../services/templateEngine';
 import { playerSyncService } from '../services/playerSyncService';
 import { ProjectedMedia } from '../types/display';
 import { CustomBookEntity, CustomChapterEntity, HandbookTarget, HandbookChapterOverride, CustomSubclassEntity, CustomFeatEntity, CustomBackgroundEntity, CustomSpeciesEntity } from '../types/handbook';
+import { BookmarkItem, BookmarkType } from '../types/bookmark';
+import { getMonsterBadge } from '../utils/monsterUtils';
 
 export type MainNavTab = 'compendium' | 'party' | 'notes' | 'encounters' | 'combat' | 'maps' | 'templates' | 'tools' | 'handbook' | 'dice' | 'settings';
 
@@ -72,6 +74,10 @@ interface AppContextType {
   // Selected Entities
   activeCampaignId: string | null;
   setActiveCampaignId: (id: string | null) => void;
+  selectedNoteId: string | null;
+  setSelectedNoteId: (id: string | null) => void;
+  selectedPlayerId: string | null;
+  setSelectedPlayerId: (id: string | null) => void;
   selectedMonster: MonsterEntity | null;
   setSelectedMonster: (monster: MonsterEntity | null) => void;
   selectedSpell: SpellEntity | null;
@@ -116,6 +122,8 @@ interface AppContextType {
   // Battle Maps & VTT
   activeMapId: string | null;
   setActiveMapId: (id: string | null) => void;
+  mapViewports: Record<string, { x: number; y: number; zoom: number }>;
+  setMapViewport: (mapId: string, viewport: { x: number; y: number; zoom: number }) => void;
   saveMap: (map: BattleMapEntity) => void;
   deleteMap: (id: string) => void;
   addTokenToMap: (mapId: string, token: MapToken) => void;
@@ -129,11 +137,15 @@ interface AppContextType {
   combatState: CombatState;
   startCombatFromEncounter: (encounter: EncounterEntity) => void;
   startCombatFromMapTokens: (mapId: string, initiatives: { tokenId: string; initiative: number }[]) => void;
+  addTokenToCombat: (mapId: string, tokenId: string, customInitiative?: number) => void;
+  removeTokenFromCombat: (tokenIdOrCombatantId: string) => void;
   endCombat: () => void;
   nextTurn: () => void;
   prevTurn: () => void;
   setInitiative: (combatantId: string, initiative: number) => void;
   modifyCombatantHp: (combatantId: string, amount: number, isTemp?: boolean) => void;
+  setCombatantDeathSaves: (combatantId: string, saves: { successes: number; failures: number }) => void;
+  rollDeathSave: (combatantId: string) => void;
   addConditionToCombatant: (combatantId: string, condition: Omit<ActiveCondition, 'appliedRound'>) => void;
   removeConditionFromCombatant: (combatantId: string, conditionId: string) => void;
   setCombatantConcentration: (combatantId: string, spellName: string | null) => void;
@@ -146,6 +158,33 @@ interface AppContextType {
   setIsDiceDrawerOpen: (open: boolean) => void;
   rollCustomFormula: (formula: string, options?: { advantage?: boolean; disadvantage?: boolean; isCrit?: boolean }, speaker?: string) => RollBreakdown;
   clearDiceHistory: () => void;
+
+  // Bookmarks & Session Quick Access
+  bookmarks: BookmarkItem[];
+  isBookmarksDrawerOpen: boolean;
+  setIsBookmarksDrawerOpen: (open: boolean) => void;
+  toggleBookmarksDrawer: () => void;
+  addBookmark: (item: Omit<BookmarkItem, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  removeBookmark: (idOrTargetId: string, type?: BookmarkType) => void;
+  toggleBookmark: (item: { 
+    type: BookmarkType; 
+    targetId: string; 
+    title: string; 
+    subtitle?: string; 
+    category?: string; 
+    imageUrl?: string; 
+    campaignId?: string | null; 
+    sessionTag?: string; 
+    notes?: string; 
+    colorHex?: string;
+    tags?: string[];
+    metadata?: Record<string, any>;
+  }) => boolean;
+  isBookmarked: (targetId: string, type?: BookmarkType) => boolean;
+  updateBookmark: (id: string, updates: Partial<BookmarkItem>) => void;
+  reorderBookmarks: (bookmarks: BookmarkItem[]) => void;
+  clearBookmarks: (campaignId?: string | null) => void;
+  openBookmark: (bookmark: BookmarkItem) => void;
 
   // Backup / Import / Export
   exportDatabaseJson: () => string;
@@ -188,10 +227,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
   const [isRadialMenuOpen, setIsRadialMenuOpen] = useState(false);
   const [isDiceDrawerOpen, setIsDiceDrawerOpen] = useState(false);
+  const [isBookmarksDrawerOpen, setIsBookmarksDrawerOpen] = useState(false);
   const [diceHistory, setDiceHistory] = useState<RollBreakdown[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(db.campaigns[0]?.id || null);
+  const [activeMapId, setActiveMapId] = useState<string | null>(db.maps?.[0]?.id || null);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [selectedMonster, setSelectedMonster] = useState<MonsterEntity | null>(null);
   const [selectedSpell, setSelectedSpell] = useState<SpellEntity | null>(null);
   const [selectedItem, setSelectedItem] = useState<ItemEntity | null>(null);
@@ -223,21 +266,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   }, []);
 
-  // Global Ctrl+B shortcut to toggle sidebar collapse
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
-        const target = e.target as HTMLElement;
-        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
-          return;
-        }
-        e.preventDefault();
-        toggleSidebar();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleSidebar]);
+  const toggleBookmarksDrawer = useCallback(() => {
+    setIsBookmarksDrawerOpen((prev) => !prev);
+  }, []);
 
   // Cloud Sync State
   const [cloudSyncConfig, setCloudSyncConfig] = useState<{
@@ -379,6 +410,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Ensure any pending changes are flushed to disk & cloud on app window close
   useEffect(() => {
     const handleBeforeUnload = () => {
+      saveDatabase(db);
       if (typeof window !== 'undefined' && (window as any).electronAPI?.cloudSync) {
         // Immediate local file flush
         (window as any).electronAPI.cloudSync.saveLocalDatabase(db);
@@ -427,22 +459,207 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [db, showToast]);
 
-  // Global Keyboard Shortcuts (Ctrl+Space for Radial Menu, Ctrl+D for Dice Tray)
+  // Global Keyboard Shortcuts (Ctrl+Space for Radial Menu, Ctrl+D for Dice Tray, Ctrl+B for Bookmarks, Ctrl+Shift+B for Sidebar)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
       if (e.ctrlKey && e.code === 'Space') {
         e.preventDefault();
         toggleRadialMenu();
-      }
-      if (e.ctrlKey && (e.key === 'd' || e.key === 'D')) {
+      } else if (e.ctrlKey && (e.key === 'd' || e.key === 'D')) {
         e.preventDefault();
         setIsDiceDrawerOpen((prev) => !prev);
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          toggleSidebar();
+        } else {
+          toggleBookmarksDrawer();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleRadialMenu]);
+  }, [toggleRadialMenu, toggleSidebar, toggleBookmarksDrawer]);
+
+  // Bookmark Management & Navigation
+  const bookmarks = db.bookmarks || [];
+
+  const addBookmark = useCallback((item: Omit<BookmarkItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newBookmark: BookmarkItem = {
+      ...item,
+      id: `bm-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setDb((prev) => {
+      const current = prev.bookmarks || [];
+      const filtered = current.filter((b) => !(b.targetId === item.targetId && b.type === item.type));
+      return {
+        ...prev,
+        bookmarks: [newBookmark, ...filtered],
+      };
+    });
+    showToast(`Bookmarked: ${item.title}`);
+  }, [showToast]);
+
+  const removeBookmark = useCallback((idOrTargetId: string, type?: BookmarkType) => {
+    let removedTitle = '';
+    setDb((prev) => {
+      const list = prev.bookmarks || [];
+      const target = list.find((b) => b.id === idOrTargetId || (b.targetId === idOrTargetId && (!type || b.type === type)));
+      if (target) removedTitle = target.title;
+      return {
+        ...prev,
+        bookmarks: list.filter((b) => !(b.id === idOrTargetId || (b.targetId === idOrTargetId && (!type || b.type === type)))),
+      };
+    });
+    if (removedTitle) {
+      showToast(`Removed bookmark: ${removedTitle}`);
+    }
+  }, [showToast]);
+
+  const toggleBookmark = useCallback((item: { 
+    type: BookmarkType; 
+    targetId: string; 
+    title: string; 
+    subtitle?: string; 
+    category?: string; 
+    imageUrl?: string; 
+    campaignId?: string | null; 
+    sessionTag?: string; 
+    notes?: string; 
+    colorHex?: string;
+    tags?: string[];
+    metadata?: Record<string, any>;
+  }) => {
+    const existing = (db.bookmarks || []).find((b) => b.targetId === item.targetId && b.type === item.type);
+    if (existing) {
+      removeBookmark(existing.id);
+      return false;
+    } else {
+      addBookmark(item);
+      return true;
+    }
+  }, [db.bookmarks, addBookmark, removeBookmark]);
+
+  const isBookmarked = useCallback((targetId: string, type?: BookmarkType) => {
+    return (db.bookmarks || []).some((b) => b.targetId === targetId && (!type || b.type === type));
+  }, [db.bookmarks]);
+
+  const updateBookmark = useCallback((id: string, updates: Partial<BookmarkItem>) => {
+    setDb((prev) => ({
+      ...prev,
+      bookmarks: (prev.bookmarks || []).map((b) => b.id === id ? { ...b, ...updates, updatedAt: new Date().toISOString() } : b),
+    }));
+  }, []);
+
+  const reorderBookmarks = useCallback((newBookmarks: BookmarkItem[]) => {
+    setDb((prev) => ({
+      ...prev,
+      bookmarks: newBookmarks,
+    }));
+  }, []);
+
+  const clearBookmarks = useCallback((campaignId?: string | null) => {
+    setDb((prev) => ({
+      ...prev,
+      bookmarks: campaignId ? (prev.bookmarks || []).filter((b) => b.campaignId !== campaignId) : [],
+    }));
+    showToast(campaignId ? 'Cleared campaign bookmarks' : 'Cleared all bookmarks');
+  }, [showToast]);
+
+  const openBookmark = useCallback((bookmark: BookmarkItem) => {
+    setIsBookmarksDrawerOpen(false);
+
+    switch (bookmark.type) {
+      case 'note':
+      case 'lore':
+      case 'image': {
+        if (bookmark.campaignId && bookmark.campaignId !== activeCampaignId) {
+          setActiveCampaignId(bookmark.campaignId);
+        }
+        setSelectedNoteId(bookmark.targetId);
+        setActiveTab('notes');
+        break;
+      }
+      case 'npc': {
+        const monster = db.monsters.find((m) => m.id === bookmark.targetId);
+        if (monster) {
+          setSelectedMonster(monster);
+          setCompendiumSubTab(monster.isNpc ? 'npcs' : 'monsters');
+          setActiveTab('compendium');
+        } else {
+          if (bookmark.campaignId && bookmark.campaignId !== activeCampaignId) {
+            setActiveCampaignId(bookmark.campaignId);
+          }
+          setSelectedNoteId(bookmark.targetId);
+          setActiveTab('notes');
+        }
+        break;
+      }
+      case 'monster': {
+        const monster = db.monsters.find((m) => m.id === bookmark.targetId);
+        if (monster) {
+          setSelectedMonster(monster);
+        }
+        setCompendiumSubTab('monsters');
+        setActiveTab('compendium');
+        break;
+      }
+      case 'spell': {
+        const spell = db.spells.find((s) => s.id === bookmark.targetId);
+        if (spell) {
+          setSelectedSpell(spell);
+        }
+        setCompendiumSubTab('spells');
+        setActiveTab('compendium');
+        break;
+      }
+      case 'item': {
+        const item = db.items.find((i) => i.id === bookmark.targetId);
+        if (item) {
+          setSelectedItem(item);
+        }
+        setCompendiumSubTab('items');
+        setActiveTab('compendium');
+        break;
+      }
+      case 'table': {
+        setCompendiumSubTab('tables');
+        setActiveTab('compendium');
+        break;
+      }
+      case 'player': {
+        setSelectedPlayerId(bookmark.targetId);
+        setActiveTab('party');
+        break;
+      }
+      case 'map': {
+        setActiveMapId(bookmark.targetId);
+        setActiveTab('maps');
+        break;
+      }
+      case 'rule': {
+        setHandbookTarget({
+          bookId: bookmark.metadata?.bookId || 'players-handbook-2024',
+          chapterId: bookmark.targetId,
+          subheadingId: bookmark.metadata?.subheadingId,
+          category: bookmark.metadata?.category || 'chapters',
+          entityId: bookmark.metadata?.entityId || bookmark.targetId,
+        });
+        setActiveTab('handbook');
+        break;
+      }
+      default:
+        break;
+    }
+  }, [db.monsters, db.spells, db.items, activeCampaignId, setActiveCampaignId, setSelectedMonster, setCompendiumSubTab, setActiveTab, setSelectedSpell, setSelectedItem, setActiveMapId, setHandbookTarget]);
 
   // Template Update
   const updateTemplate = useCallback((type: EntityType, template: TemplateDefinition) => {
@@ -911,7 +1128,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Deleted custom species');
   }, [showToast]);
 
-  const [activeMapId, setActiveMapId] = useState<string | null>(db.maps?.[0]?.id || null);
+  // Persistent camera viewports cache per battle map
+  const [mapViewports, setMapViewports] = useState<Record<string, { x: number; y: number; zoom: number }>>(() => {
+    try {
+      const saved = localStorage.getItem('dd_map_viewports');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const setMapViewport = useCallback((mapId: string, viewport: { x: number; y: number; zoom: number }) => {
+    setMapViewports((prev) => {
+      const current = prev[mapId];
+      if (
+        current &&
+        Math.abs(current.x - viewport.x) < 0.2 &&
+        Math.abs(current.y - viewport.y) < 0.2 &&
+        Math.abs(current.zoom - viewport.zoom) < 0.002
+      ) {
+        return prev;
+      }
+      const updated = { ...prev, [mapId]: viewport };
+      try {
+        localStorage.setItem('dd_map_viewports', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  }, []);
 
   // Sync active map to player display
   useEffect(() => {
@@ -986,17 +1230,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [showToast]);
 
   const updateMapToken = useCallback((mapId: string, tokenId: string, updates: Partial<MapToken>) => {
+    let targetTokenName = '';
+    let targetEntityId: string | undefined;
+    let targetCombatantId: string | undefined;
+
     setDb((prev) => {
       const maps = prev.maps || [];
       const updated = maps.map((m) => {
         if (m.id !== mapId) return m;
         return {
           ...m,
-          tokens: m.tokens.map((t) => (t.id === tokenId ? { ...t, ...updates } : t)),
+          tokens: m.tokens.map((t) => {
+            if (t.id === tokenId) {
+              targetTokenName = t.name;
+              targetEntityId = t.entityId;
+              targetCombatantId = t.combatantId;
+              return { ...t, ...updates };
+            }
+            return t;
+          }),
         };
       });
       return { ...prev, maps: updated };
     });
+
+    // Bi-directional HP Sync: If token health was modified, sync with matching combatant in active combat
+    if (updates.currentHp !== undefined || updates.tempHp !== undefined) {
+      setCombatState((prevCombat) => {
+        if (!prevCombat.isActive) return prevCombat;
+        let changed = false;
+        const updatedCombatants = prevCombat.combatants.map((c) => {
+          const isMatch = (targetCombatantId && c.id === targetCombatantId) ||
+            c.id === tokenId ||
+            c.id.includes(tokenId) ||
+            tokenId.includes(c.id) ||
+            (targetEntityId && c.entityId === targetEntityId && c.name === targetTokenName);
+
+          if (isMatch) {
+            changed = true;
+            const curHp = updates.currentHp !== undefined ? updates.currentHp : c.currentHp;
+            const tmpHp = updates.tempHp !== undefined ? updates.tempHp : c.tempHp;
+            return {
+              ...c,
+              currentHp: curHp,
+              tempHp: tmpHp,
+              defeated: curHp === 0,
+            };
+          }
+          return c;
+        });
+        return changed ? { ...prevCombat, combatants: updatedCombatants } : prevCombat;
+      });
+    }
   }, []);
 
   const deleteMapToken = useCallback((mapId: string, tokenId: string) => {
@@ -1309,11 +1594,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const initRoll = Math.floor(Math.random() * 20) + 1 + dexMod;
         const color = colors[colorIdx % colors.length];
         const suffix = slot.count > 1 ? ` ${i}` : '';
+        const fullName = `${slot.customName || m.name}${suffix}`;
+        const badge = getMonsterBadge(fullName) || undefined;
 
         combatants.push({
           id: `c-monster-${m.id}-${i}-${Date.now()}`,
           entityId: m.id,
-          name: `${slot.customName || m.name}${suffix}`,
+          name: fullName,
+          badge,
           isPlayer: false,
           avatarUrl: m.avatarUrl,
           tokenUrl: m.tokenUrl,
@@ -1380,6 +1668,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     for (const initEntry of initiatives) {
       const token = map.tokens.find((t) => t.id === initEntry.tokenId);
       if (!token) continue;
+      // Skip monsters that are hidden from players
+      if (!token.isPlayer && token.hiddenFromPlayers) continue;
 
       const color = colors[colorIdx % colors.length];
       const combatantId = `c-${token.id}-${Date.now()}`;
@@ -1410,11 +1700,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else {
         const monster = db.monsters.find((m) => m.id === token.entityId);
         const dexMod = monster ? Math.floor((monster.abilities.dex - 10) / 2) : 0;
+        const badge = token.badge || getMonsterBadge(token, map.tokens) || undefined;
+
+        let combatantName = token.name;
+        if (badge) {
+          const hasTrailingNumber = /\d+$/.test(token.name.trim());
+          if (!hasTrailingNumber) {
+            const badgeNum = badge.replace(/^[A-Z]+/i, '');
+            if (badgeNum) {
+              combatantName = `${token.name} ${badgeNum}`;
+            }
+          }
+        }
 
         combatants.push({
           id: combatantId,
           entityId: token.entityId || token.id,
-          name: token.name,
+          name: combatantName,
+          badge,
           isPlayer: false,
           avatarUrl: token.avatarUrl || monster?.avatarUrl,
           tokenUrl: token.tokenUrl || monster?.tokenUrl,
@@ -1447,7 +1750,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return b.tieBreaker - a.tieBreaker;
     });
 
-    // Update tokens on map to link combatantId
+    // Update tokens on map to link combatantId and sync numbered names and badges
     setDb((prev) => ({
       ...prev,
       maps: prev.maps.map((m) => {
@@ -1456,7 +1759,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ...m,
           tokens: m.tokens.map((t) => {
             const matched = combatants.find((c) => c.id.includes(t.id));
-            return matched ? { ...t, combatantId: matched.id } : t;
+            return matched
+              ? {
+                  ...t,
+                  name: matched.name,
+                  badge: matched.badge,
+                  combatantId: matched.id,
+                }
+              : t;
           }),
         };
       }),
@@ -1473,27 +1783,243 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           timestamp: new Date().toLocaleTimeString(),
           round: 1,
           speaker: 'Dungeon Daddy',
-          message: `Combat started on battle map "${map.name}"! Round 1 begins with ${combatants[0]?.name || 'Nobody'}.`,
+          message: `Combat started from map tokens! Round 1 begins with ${combatants[0]?.name || 'Nobody'}.`,
           type: 'system',
         },
       ],
       startTime: new Date().toLocaleTimeString(),
     });
 
-    showToast(`⚔️ Combat started with ${combatants.length} combatants!`);
+    showToast('⚔️ Combat started on battle map');
   }, [db.maps, db.players, db.monsters, showToast]);
 
-  // Turn management
+  // Add a character / monster token into active combat (mid-battle reinforcement / reveal)
+  const addTokenToCombat = useCallback((mapId: string, tokenId: string, customInitiative?: number) => {
+    const map = db.maps.find((m) => m.id === mapId);
+    if (!map) return;
+    const token = map.tokens.find((t) => t.id === tokenId);
+    if (!token) return;
+
+    let dexMod = 0;
+    let init = customInitiative;
+    if (init === undefined) {
+      if (token.isPlayer) {
+        const p = db.players.find((pl) => pl.id === token.entityId);
+        dexMod = p ? (p.initiativeBonus !== undefined ? p.initiativeBonus : Math.floor(((p.abilities?.dex ?? 10) - 10) / 2)) : 0;
+      } else {
+        const m = db.monsters.find((mo) => mo.id === token.entityId);
+        dexMod = m ? Math.floor(((m.abilities?.dex ?? 10) - 10) / 2) : 0;
+      }
+      const d20 = Math.floor(Math.random() * 20) + 1;
+      init = d20 + dexMod;
+    }
+
+    const colors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6'];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const combatantId = `c-${token.id}-${Date.now()}`;
+
+    let newCombatant: Combatant;
+    if (token.isPlayer) {
+      const player = db.players.find((p) => p.id === token.entityId);
+      newCombatant = {
+        id: combatantId,
+        entityId: token.entityId || token.id,
+        name: token.name,
+        isPlayer: true,
+        avatarUrl: token.avatarUrl || player?.avatarUrl,
+        tokenUrl: token.tokenUrl || player?.tokenUrl,
+        initiative: init,
+        tieBreaker: dexMod,
+        maxHp: token.maxHp || player?.maxHp || 20,
+        currentHp: token.currentHp ?? (player?.currentHp || 20),
+        tempHp: token.tempHp || 0,
+        armorClass: token.armorClass || player?.armorClass || 15,
+        speed: player?.speed || '30 ft.',
+        abilities: player?.abilities || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+        conditions: (token.conditions || []).map((c) => ({ id: `cond-${Date.now()}-${c}`, name: c, appliedRound: 1 })),
+        color,
+        reactionUsed: false,
+      };
+    } else {
+      const monster = db.monsters.find((m) => m.id === token.entityId);
+      const badge = token.badge || getMonsterBadge(token, map.tokens) || undefined;
+      let combatantName = token.name;
+      if (badge) {
+        const hasTrailingNumber = /\d+$/.test(token.name.trim());
+        if (!hasTrailingNumber) {
+          const badgeNum = badge.replace(/^[A-Z]+/i, '');
+          if (badgeNum) {
+            combatantName = `${token.name} ${badgeNum}`;
+          }
+        }
+      }
+      newCombatant = {
+        id: combatantId,
+        entityId: token.entityId || token.id,
+        name: combatantName,
+        badge,
+        isPlayer: false,
+        avatarUrl: token.avatarUrl || monster?.avatarUrl,
+        tokenUrl: token.tokenUrl || monster?.tokenUrl,
+        initiative: init,
+        tieBreaker: dexMod,
+        maxHp: token.maxHp || monster?.hitPoints || 10,
+        currentHp: token.currentHp ?? (monster?.hitPoints || 10),
+        tempHp: token.tempHp || 0,
+        armorClass: token.armorClass || monster?.armorClass || 12,
+        speed: monster?.speed || '30 ft.',
+        abilities: monster?.abilities || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+        conditions: (token.conditions || []).map((c) => ({ id: `cond-${Date.now()}-${c}`, name: c, appliedRound: 1 })),
+        color,
+        actions: monster?.actions,
+        bonusActions: monster?.bonusActions,
+        reactions: monster?.reactions,
+        legendaryActions: monster?.legendaryActions,
+        traits: monster?.traits,
+        spellcasting: monster?.spellcasting,
+        legendaryActionsMax: monster?.legendaryCount || (monster?.legendaryActions?.length ? 3 : 0),
+        legendaryActionsUsed: 0,
+        reactionUsed: false,
+      };
+    }
+
+    // Link token in db
+    setDb((prevDb) => ({
+      ...prevDb,
+      maps: prevDb.maps.map((m) =>
+        m.id === mapId
+          ? {
+              ...m,
+              tokens: m.tokens.map((t) =>
+                t.id === tokenId
+                  ? { ...t, combatantId: newCombatant.id, name: newCombatant.name, badge: newCombatant.badge }
+                  : t
+              ),
+            }
+          : m
+      ),
+    }));
+
+    setCombatState((prev) => {
+      const currentActiveCombatantId = prev.combatants[prev.currentTurnIndex]?.id;
+      const updatedList = [...prev.combatants.filter((c) => c.id !== newCombatant.id && !c.id.includes(tokenId)), newCombatant];
+      updatedList.sort((a, b) => {
+        if (b.initiative !== a.initiative) return b.initiative - a.initiative;
+        return b.tieBreaker - a.tieBreaker;
+      });
+
+      const newTurnIdx = prev.isActive && currentActiveCombatantId
+        ? Math.max(0, updatedList.findIndex((c) => c.id === currentActiveCombatantId))
+        : 0;
+
+      const logEntry: CombatLogEntry = {
+        id: `log-join-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString(),
+        round: prev.round,
+        speaker: 'Dungeon Daddy',
+        message: `${newCombatant.name} joined combat (Initiative ${newCombatant.initiative})!`,
+        type: 'system',
+      };
+
+      return {
+        ...prev,
+        isActive: true,
+        currentTurnIndex: newTurnIdx,
+        combatants: updatedList,
+        log: [logEntry, ...prev.log],
+      };
+    });
+
+    showToast(`⚔️ Added ${newCombatant.name} to combat (Init: ${init})`);
+  }, [db.maps, db.players, db.monsters, showToast]);
+
+  // Remove a combatant / token from active combat
+  const removeTokenFromCombat = useCallback((tokenIdOrCombatantId: string) => {
+    let removedName = '';
+
+    setCombatState((prev) => {
+      const target = prev.combatants.find(
+        (c) => c.id === tokenIdOrCombatantId || c.entityId === tokenIdOrCombatantId || c.id.includes(tokenIdOrCombatantId)
+      );
+      if (!target) return prev;
+      removedName = target.name;
+
+      const currentActiveCombatantId = prev.combatants[prev.currentTurnIndex]?.id;
+      const isCurrent = currentActiveCombatantId === target.id;
+      const remaining = prev.combatants.filter((c) => c.id !== target.id);
+
+      let nextIndex = prev.currentTurnIndex;
+      if (remaining.length === 0) {
+        nextIndex = 0;
+      } else if (isCurrent) {
+        nextIndex = prev.currentTurnIndex >= remaining.length ? 0 : prev.currentTurnIndex;
+      } else {
+        const newIdx = remaining.findIndex((c) => c.id === currentActiveCombatantId);
+        nextIndex = newIdx !== -1 ? newIdx : Math.min(prev.currentTurnIndex, remaining.length - 1);
+      }
+
+      const logEntry: CombatLogEntry = {
+        id: `log-leave-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString(),
+        round: prev.round,
+        speaker: 'Dungeon Daddy',
+        message: `${removedName} left combat.`,
+        type: 'system',
+      };
+
+      return {
+        ...prev,
+        currentTurnIndex: nextIndex,
+        combatants: remaining,
+        log: [logEntry, ...prev.log],
+      };
+    });
+
+    // Unlink combatantId from token in map
+    setDb((prevDb) => ({
+      ...prevDb,
+      maps: prevDb.maps.map((m) => ({
+        ...m,
+        tokens: m.tokens.map((t) =>
+          t.combatantId === tokenIdOrCombatantId || t.id === tokenIdOrCombatantId || (t.combatantId && t.combatantId.includes(tokenIdOrCombatantId))
+            ? { ...t, combatantId: undefined }
+            : t
+        ),
+      })),
+    }));
+
+    if (removedName) {
+      showToast(`Removed ${removedName} from combat tracker.`);
+    }
+  }, [showToast]);
+
+  // Turn management (automatically skips dead/defeated monsters/NPCs)
   const nextTurn = useCallback(() => {
     setCombatState((prev) => {
       if (!prev.isActive || prev.combatants.length === 0) return prev;
 
-      let nextIndex = prev.currentTurnIndex + 1;
+      let nextIndex = prev.currentTurnIndex;
       let nextRound = prev.round;
+      let attempts = 0;
 
-      if (nextIndex >= prev.combatants.length) {
+      // Find next alive combatant (players at 0 HP still take turns for death saves, dead monsters are skipped)
+      while (attempts < prev.combatants.length) {
+        nextIndex++;
+        attempts++;
+        if (nextIndex >= prev.combatants.length) {
+          nextIndex = 0;
+          nextRound += 1;
+        }
+
+        const candidate = prev.combatants[nextIndex];
+        const isDeadMonster = !candidate.isPlayer && (candidate.currentHp <= 0 || candidate.defeated);
+        if (!isDeadMonster) {
+          break;
+        }
+      }
+
+      if (attempts >= prev.combatants.length) {
         nextIndex = 0;
-        nextRound += 1;
       }
 
       const updatedCombatants = prev.combatants.map((c, idx) => {
@@ -1539,12 +2065,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCombatState((prev) => {
       if (!prev.isActive || prev.combatants.length === 0) return prev;
 
-      let prevIndex = prev.currentTurnIndex - 1;
+      let prevIndex = prev.currentTurnIndex;
       let prevRound = prev.round;
+      let attempts = 0;
 
-      if (prevIndex < 0) {
-        prevIndex = prev.combatants.length - 1;
-        prevRound = Math.max(1, prevRound - 1);
+      while (attempts < prev.combatants.length) {
+        prevIndex--;
+        attempts++;
+        if (prevIndex < 0) {
+          prevIndex = prev.combatants.length - 1;
+          prevRound = Math.max(1, prevRound - 1);
+        }
+
+        const candidate = prev.combatants[prevIndex];
+        const isDeadMonster = !candidate.isPlayer && (candidate.currentHp <= 0 || candidate.defeated);
+        if (!isDeadMonster) {
+          break;
+        }
+      }
+
+      if (attempts >= prev.combatants.length) {
+        prevIndex = 0;
       }
 
       return {
@@ -1566,17 +2107,113 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   }, []);
 
+  const setCombatantDeathSaves = useCallback((combatantId: string, saves: { successes: number; failures: number }) => {
+    setCombatState((prev) => {
+      let syncedPlayerId: string | undefined;
+      const updated = prev.combatants.map((c) => {
+        if (c.id !== combatantId) return c;
+        syncedPlayerId = c.entityId;
+        return { ...c, deathSaves: saves };
+      });
+
+      if (syncedPlayerId) {
+        setDb((dbPrev) => ({
+          ...dbPrev,
+          players: (dbPrev.players || []).map((p) =>
+            p.id === syncedPlayerId ? { ...p, deathSaves: saves } : p
+          ),
+        }));
+      }
+
+      return { ...prev, combatants: updated };
+    });
+  }, []);
+
+  const rollDeathSave = useCallback((combatantId: string) => {
+    const roll = Math.floor(Math.random() * 20) + 1;
+    let rollMsg = '';
+
+    setCombatState((prev) => {
+      const target = prev.combatants.find((c) => c.id === combatantId);
+      if (!target) return prev;
+
+      let curSuccesses = target.deathSaves?.successes || 0;
+      let curFailures = target.deathSaves?.failures || 0;
+      let newHp = target.currentHp;
+      let conditions = target.conditions;
+
+      if (roll === 20) {
+        // Critical Success: Regain 1 HP and wake up!
+        newHp = 1;
+        curSuccesses = 0;
+        curFailures = 0;
+        conditions = conditions.filter((cond) => cond.name.toLowerCase() !== 'unconscious');
+        rollMsg = `🎲 NATURAL 20 on Death Save! ${target.name} regains 1 HP and wakes up!`;
+      } else if (roll === 1) {
+        // Critical Failure: 2 Failures
+        curFailures = Math.min(3, curFailures + 2);
+        rollMsg = `💀 NATURAL 1 on Death Save! ${target.name} suffers 2 Failures (${curFailures}/3).`;
+      } else if (roll >= 10) {
+        curSuccesses = Math.min(3, curSuccesses + 1);
+        rollMsg = `🛡️ Death Save: rolled ${roll} (Success ${curSuccesses}/3).`;
+        if (curSuccesses >= 3) rollMsg += ` ${target.name} is Stabilized!`;
+      } else {
+        curFailures = Math.min(3, curFailures + 1);
+        rollMsg = `🩸 Death Save: rolled ${roll} (Failure ${curFailures}/3).`;
+        if (curFailures >= 3) rollMsg += ` ${target.name} has died.`;
+      }
+
+      showToast(rollMsg);
+
+      const logEntry: CombatLogEntry = {
+        id: `log-ds-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString(),
+        round: prev.round,
+        speaker: target.name,
+        message: rollMsg,
+        type: 'roll',
+        rollDetails: {
+          formula: '1d20',
+          total: roll,
+          breakdown: `d20 (${roll})`,
+          isCrit: roll === 20,
+          isFumble: roll === 1,
+        },
+      };
+
+      const updatedCombatants = prev.combatants.map((c) => {
+        if (c.id !== combatantId) return c;
+        return {
+          ...c,
+          currentHp: newHp,
+          deathSaves: { successes: curSuccesses, failures: curFailures },
+          conditions,
+          lastHealAmount: roll === 20 ? 1 : undefined,
+        };
+      });
+
+      return {
+        ...prev,
+        combatants: updatedCombatants,
+        log: [logEntry, ...prev.log],
+      };
+    });
+  }, [showToast]);
+
   const modifyCombatantHp = useCallback((combatantId: string, amount: number, isTemp = false) => {
     setCombatState((prev) => {
       let targetName = '';
-      let actionType: 'damage' | 'heal' = amount < 0 ? 'damage' : 'heal';
+      const actionType: 'damage' | 'heal' = amount < 0 ? 'damage' : 'heal';
+      let infoToSync: { combatantId: string; entityId?: string; name: string; currentHp: number; tempHp: number } | null = null;
 
       const updated = prev.combatants.map((c) => {
         if (c.id !== combatantId) return c;
         targetName = c.name;
 
         if (isTemp) {
-          return { ...c, tempHp: Math.max(0, amount) };
+          const newTmp = Math.max(0, amount);
+          infoToSync = { combatantId: c.id, entityId: c.entityId, name: c.name, currentHp: c.currentHp, tempHp: newTmp };
+          return { ...c, tempHp: newTmp };
         }
 
         if (amount < 0) {
@@ -1595,21 +2232,97 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
 
           const newCurrentHp = Math.max(0, c.currentHp - remainingDmg);
+          const isNowDown = newCurrentHp === 0 && c.currentHp > 0;
+          const isAlreadyDown = newCurrentHp === 0 && c.currentHp === 0;
+
+          let deathSaves = c.deathSaves;
+          let conditions = c.conditions;
+
+          if (c.isPlayer) {
+            if (isNowDown) {
+              deathSaves = { successes: 0, failures: 0 };
+              if (!conditions.some((cond) => cond.name.toLowerCase() === 'unconscious')) {
+                conditions = [
+                  ...conditions,
+                  { id: `cond-unconscious-${Date.now()}`, name: 'Unconscious', appliedRound: prev.round, color: '#991b1b' },
+                  { id: `cond-prone-${Date.now()}`, name: 'Prone', appliedRound: prev.round, color: '#dc2626' },
+                ];
+              }
+            } else if (isAlreadyDown && dmg > 0) {
+              const newFails = Math.min(3, (deathSaves?.failures || 0) + 1);
+              deathSaves = { successes: deathSaves?.successes || 0, failures: newFails };
+            }
+          }
+
+          infoToSync = { combatantId: c.id, entityId: c.entityId, name: c.name, currentHp: newCurrentHp, tempHp: newTempHp };
           return {
             ...c,
             tempHp: newTempHp,
             currentHp: newCurrentHp,
-            defeated: newCurrentHp === 0,
+            defeated: !c.isPlayer && newCurrentHp === 0,
+            deathSaves,
+            conditions,
+            lastHealAmount: undefined,
           };
         } else {
           const newCurrentHp = Math.min(c.maxHp, c.currentHp + amount);
+          const wasDown = c.currentHp === 0;
+          const isHealed = newCurrentHp > 0 && wasDown;
+
+          let deathSaves = c.deathSaves;
+          let conditions = c.conditions;
+
+          if (c.isPlayer && isHealed) {
+            deathSaves = { successes: 0, failures: 0 };
+            conditions = conditions.filter(
+              (cond) => cond.name.toLowerCase() !== 'unconscious'
+            );
+          }
+
+          infoToSync = { combatantId: c.id, entityId: c.entityId, name: c.name, currentHp: newCurrentHp, tempHp: c.tempHp };
           return {
             ...c,
             currentHp: newCurrentHp,
             defeated: false,
+            deathSaves,
+            conditions,
+            lastHealAmount: amount,
           };
         }
       });
+
+      // Bi-directional HP Sync: Also update matching map tokens in db.maps
+      if (infoToSync) {
+        const info: { combatantId: string; entityId?: string; name: string; currentHp: number; tempHp: number } = infoToSync;
+        setDb((prevDb) => {
+          const maps = prevDb.maps || [];
+          let changed = false;
+          const updatedMaps = maps.map((m) => {
+            let mapChanged = false;
+            const updatedTokens = m.tokens.map((t) => {
+              const isMatch = t.combatantId === info.combatantId ||
+                t.id === info.combatantId ||
+                info.combatantId.includes(t.id) ||
+                t.id.includes(info.combatantId) ||
+                (!!info.entityId && t.entityId === info.entityId && t.name === info.name);
+
+              if (isMatch) {
+                mapChanged = true;
+                changed = true;
+                return {
+                  ...t,
+                  currentHp: info.currentHp,
+                  tempHp: info.tempHp,
+                  combatantId: info.combatantId,
+                };
+              }
+              return t;
+            });
+            return mapChanged ? { ...m, tokens: updatedTokens } : m;
+          });
+          return changed ? { ...prevDb, maps: updatedMaps } : prevDb;
+        });
+      }
 
       const logMsg: CombatLogEntry = {
         id: `hp-${Date.now()}`,
@@ -1990,6 +2703,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         resetTemplateToDefault,
         activeCampaignId,
         setActiveCampaignId,
+        selectedNoteId,
+        setSelectedNoteId,
+        selectedPlayerId,
+        setSelectedPlayerId,
         selectedMonster,
         setSelectedMonster,
         selectedSpell,
@@ -2030,6 +2747,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         bulkAddEntities,
         activeMapId,
         setActiveMapId,
+        mapViewports,
+        setMapViewport,
         saveMap,
         deleteMap,
         addTokenToMap,
@@ -2041,11 +2760,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         combatState,
         startCombatFromEncounter,
         startCombatFromMapTokens,
+        addTokenToCombat,
+        removeTokenFromCombat,
         endCombat,
         nextTurn,
         prevTurn,
         setInitiative,
         modifyCombatantHp,
+        setCombatantDeathSaves,
+        rollDeathSave,
         addConditionToCombatant,
         removeConditionFromCombatant,
         setCombatantConcentration,
@@ -2056,6 +2779,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsDiceDrawerOpen,
         rollCustomFormula,
         clearDiceHistory,
+        bookmarks,
+        isBookmarksDrawerOpen,
+        setIsBookmarksDrawerOpen,
+        toggleBookmarksDrawer,
+        addBookmark,
+        removeBookmark,
+        toggleBookmark,
+        isBookmarked,
+        updateBookmark,
+        reorderBookmarks,
+        clearBookmarks,
+        openBookmark,
         exportDatabaseJson,
         importDatabaseJson,
         resetDatabaseToDefaults,

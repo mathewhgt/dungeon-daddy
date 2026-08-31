@@ -15,6 +15,7 @@ import { SRD_ROLL_TABLES } from './srdData/tablesData';
 import { STARTER_PLAYERS, STARTER_CAMPAIGN, STARTER_ENCOUNTERS } from './srdData/defaultParty';
 import { STARTER_MAPS } from './srdData/defaultMaps';
 import { CustomBookEntity, CustomChapterEntity, HandbookChapterOverride, CustomSubclassEntity, CustomFeatEntity, CustomBackgroundEntity, CustomSpeciesEntity } from '../types/handbook';
+import { BookmarkItem } from '../types/bookmark';
 
 export const DEFAULT_CUSTOM_BOOK: CustomBookEntity = {
   id: 'custom-homebrew-rules',
@@ -55,6 +56,7 @@ export interface AppDatabase {
   customBooks: CustomBookEntity[];
   handbookOverrides: Record<string, HandbookChapterOverride>;
   handbookCustomEntries: CustomChapterEntity[];
+  bookmarks?: BookmarkItem[];
   customSubclasses?: CustomSubclassEntity[];
   customFeats?: CustomFeatEntity[];
   customBackgrounds?: CustomBackgroundEntity[];
@@ -79,6 +81,7 @@ export function getInitialDatabase(): AppDatabase {
     customBooks: [DEFAULT_CUSTOM_BOOK],
     handbookOverrides: {},
     handbookCustomEntries: [],
+    bookmarks: [],
     customSubclasses: [],
     customFeats: [],
     customBackgrounds: [],
@@ -296,6 +299,7 @@ export function loadDatabase(): AppDatabase {
       customBooks: parsed.customBooks && parsed.customBooks.length > 0 ? parsed.customBooks : [DEFAULT_CUSTOM_BOOK],
       handbookOverrides: parsed.handbookOverrides || {},
       handbookCustomEntries: parsed.handbookCustomEntries || [],
+      bookmarks: parsed.bookmarks || [],
       customSubclasses: parsed.customSubclasses || [],
       customFeats: parsed.customFeats || [],
       customBackgrounds: parsed.customBackgrounds || [],
@@ -548,6 +552,7 @@ export function importFullDatabaseJson(jsonString: string): { success: boolean; 
       customBooks: parsed.customBooks && parsed.customBooks.length > 0 ? parsed.customBooks : [DEFAULT_CUSTOM_BOOK],
       handbookOverrides: parsed.handbookOverrides || {},
       handbookCustomEntries: parsed.handbookCustomEntries || [],
+      bookmarks: parsed.bookmarks || [],
       customSubclasses: parsed.customSubclasses || [],
       customFeats: parsed.customFeats || [],
       customBackgrounds: parsed.customBackgrounds || [],

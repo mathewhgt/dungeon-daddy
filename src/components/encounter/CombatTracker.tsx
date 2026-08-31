@@ -17,12 +17,17 @@ import {
   Footprints,
   Flame,
   CheckCircle2,
-  StopCircle
+  StopCircle,
+  Zap
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Combatant, ConditionType } from '../../types/combat';
 import { MonsterStatBlock } from '../compendium/MonsterStatBlock';
+import { PlayerStatBlock } from '../compendium/PlayerStatBlock';
 import { TokenAvatar } from '../common/TokenAvatar';
+import { getMonsterBadge } from '../../utils/monsterUtils';
+import { DeathSavesTracker } from '../common/DeathSavesTracker';
+import { EditInitiativeModal } from '../common/EditInitiativeModal';
 
 export const CombatTracker: React.FC = () => {
   const { 
@@ -31,6 +36,8 @@ export const CombatTracker: React.FC = () => {
     prevTurn, 
     endCombat, 
     modifyCombatantHp, 
+    setCombatantDeathSaves,
+    rollDeathSave,
     addConditionToCombatant, 
     removeConditionFromCombatant, 
     executeAttackRoll,
@@ -47,6 +54,7 @@ export const CombatTracker: React.FC = () => {
   const [conditionModalCombatant, setConditionModalCombatant] = useState<Combatant | null>(null);
   const [selectedConditionName, setSelectedConditionName] = useState<ConditionType>('Poisoned');
   const [conditionRounds, setConditionRounds] = useState<number>(3);
+  const [initiativeModalCombatant, setInitiativeModalCombatant] = useState<Combatant | null>(null);
 
   const activeCombatant = combatState.combatants[combatState.currentTurnIndex] || null;
   const inspectedCombatant = combatState.combatants.find((c) => c.id === (selectedCombatantId || activeCombatant?.id)) || activeCombatant;
@@ -197,19 +205,24 @@ export const CombatTracker: React.FC = () => {
             const isCurrentTurn = idx === combatState.currentTurnIndex;
             const isInspected = inspectedCombatant?.id === c.id;
             const hpPercent = getHpPercent(c.currentHp, c.maxHp);
-            const isDead = c.currentHp === 0;
+            const isDeadMonster = !c.isPlayer && (c.currentHp === 0 || c.defeated);
+            const isDownPlayer = c.isPlayer && c.currentHp === 0;
 
             return (
               <div
                 key={c.id}
                 onClick={() => setSelectedCombatantId(c.id)}
                 className={`p-3 rounded-xl border transition-all space-y-2 cursor-pointer relative ${
-                  isCurrentTurn
+                  isDeadMonster
+                    ? 'opacity-40 grayscale bg-black/40 border-slate-800'
+                    : isDownPlayer
+                    ? 'bg-red-950/20 border-red-800/80'
+                    : isCurrentTurn
                     ? 'bg-amber-500/10 border-amber-500/80 shadow-lg shadow-amber-500/10 ring-1 ring-amber-500/50'
                     : isInspected
                     ? 'bg-surface-100 border-slate-500'
                     : 'bg-surface-100/70 border-surface-border hover:bg-surface-hover hover:border-slate-600'
-                } ${isDead ? 'opacity-60 bg-red-950/20' : ''}`}
+                }`}
               >
                 {/* Active Indicator Arrow */}
                 {isCurrentTurn && (
@@ -220,38 +233,76 @@ export const CombatTracker: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2.5">
                     {/* Initiative Badge */}
-                    <div 
-                      className="w-7 h-7 rounded-lg bg-surface-50 border border-surface-border text-slate-200 font-mono font-bold text-xs flex items-center justify-center shrink-0"
-                      title="Initiative roll"
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setInitiativeModalCombatant(c);
+                      }}
+                      className="w-7 h-7 rounded-lg bg-surface-50 hover:bg-surface-hover border border-surface-border hover:border-amber-500/60 text-amber-300 font-mono font-bold text-xs flex items-center justify-center shrink-0 transition-colors cursor-pointer shadow-xs"
+                      title="Click to manually edit initiative"
                     >
                       {c.initiative}
-                    </div>
+                    </button>
 
                     {/* Circular Token Avatar */}
-                    <TokenAvatar
-                      name={c.name}
-                      imageUrl={c.avatarUrl}
-                      tokenUrl={c.tokenUrl}
-                      type={c.isPlayer ? 'player' : 'monster'}
-                      size="sm"
-                    />
+                    {(() => {
+                      const monsterBadge = !c.isPlayer ? (c.badge || getMonsterBadge(c, combatState.combatants)) : null;
+                      let combatantDisplayName = c.name;
+                      if (!c.isPlayer && monsterBadge) {
+                        const hasTrailingNumber = /\d+$/.test(c.name.trim());
+                        if (!hasTrailingNumber) {
+                          const badgeNum = monsterBadge.replace(/^[A-Z]+/i, '');
+                          if (badgeNum) combatantDisplayName = `${c.name} ${badgeNum}`;
+                        }
+                      }
+                      return (
+                        <>
+                          <TokenAvatar
+                            name={combatantDisplayName}
+                            imageUrl={c.avatarUrl}
+                            tokenUrl={c.tokenUrl}
+                            type={c.isPlayer ? 'player' : 'monster'}
+                            size="sm"
+                          />
 
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className={`font-serif text-sm font-bold ${c.isPlayer ? 'text-blue-300' : 'text-amber-400'}`}>
-                          {c.name}
-                        </span>
-                        {isDead && (
-                          <span className="px-1.5 py-0.2 rounded bg-red-950 text-red-300 border border-red-800 text-[10px] font-bold flex items-center space-x-0.5">
-                            <Skull className="w-3 h-3" />
-                            <span>DOWN</span>
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-mono">
-                        AC {c.armorClass} · Speed {c.speed}
-                      </div>
-                    </div>
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className={`font-serif text-sm font-bold ${
+                                isDeadMonster
+                                  ? 'line-through text-slate-500'
+                                  : isDownPlayer
+                                  ? 'text-red-300'
+                                  : c.isPlayer
+                                  ? 'text-blue-300'
+                                  : 'text-amber-400'
+                              }`}>
+                                {combatantDisplayName}
+                              </span>
+                              {monsterBadge && (
+                                <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-black bg-pink-950/80 border border-pink-500/60 text-pink-300 shadow-xs">
+                                  {monsterBadge}
+                                </span>
+                              )}
+                              {isDeadMonster && (
+                                <span className="px-1.5 py-0.2 rounded bg-red-950 text-red-300 border border-red-800 text-[10px] font-bold flex items-center space-x-0.5">
+                                  <Skull className="w-3 h-3" />
+                                  <span>DEAD</span>
+                                </span>
+                              )}
+                              {isDownPlayer && (
+                                <span className="px-1.5 py-0.2 rounded bg-red-950 text-red-300 border border-red-800 text-[10px] font-bold flex items-center space-x-0.5">
+                                  <span>0 HP</span>
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono">
+                              AC {c.armorClass} · Speed {c.speed}
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Quick Damage/Heal & Condition Buttons */}
@@ -294,6 +345,19 @@ export const CombatTracker: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Death Saving Throws for Downed Players */}
+                {isDownPlayer && (
+                  <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+                    <DeathSavesTracker
+                      saves={c.deathSaves}
+                      compact={!isCurrentTurn}
+                      onChange={(saves) => setCombatantDeathSaves(c.id, saves)}
+                      onRoll={() => rollDeathSave(c.id)}
+                      lastHealAmount={c.lastHealAmount}
+                    />
+                  </div>
+                )}
+
                 {/* Active Conditions & Concentration */}
                 {(c.conditions.length > 0 || c.concentratingOn) && (
                   <div className="flex flex-wrap gap-1 pt-1" onClick={(e) => e.stopPropagation()}>
@@ -334,74 +398,97 @@ export const CombatTracker: React.FC = () => {
         <div className="flex-1 overflow-y-auto p-6 bg-[#090d12] flex flex-col justify-between">
           {inspectedCombatant ? (
             <div className="max-w-3xl mx-auto w-full space-y-6">
-              {/* Top Banner for Inspected Combatant */}
-              <div className="p-4 rounded-xl bg-surface-100 border border-surface-border flex items-center justify-between">
-                <div>
-                  <div className="text-xs text-slate-400 font-semibold uppercase">Currently Inspecting</div>
-                  <h2 className="font-serif text-xl font-bold text-slate-100">{inspectedCombatant.name}</h2>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => {
-                      setHpModalCombatant(inspectedCombatant);
-                      setIsTempHp(false);
-                    }}
-                    className="px-3 py-1.5 bg-surface-50 hover:bg-surface-hover border border-surface-border text-xs font-semibold text-slate-200 rounded-lg flex items-center space-x-1.5"
-                  >
-                    <Heart className="w-3.5 h-3.5 text-red-400" />
-                    <span>Damage / Heal</span>
-                  </button>
-                  <button
-                    onClick={() => setConditionModalCombatant(inspectedCombatant)}
-                    className="px-3 py-1.5 bg-surface-50 hover:bg-surface-hover border border-surface-border text-xs font-semibold text-slate-200 rounded-lg flex items-center space-x-1.5"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                    <span>Add Condition</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Monster Actions & Attacks */}
-              {inspectedCombatant.actions && inspectedCombatant.actions.length > 0 ? (
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2 text-sm font-serif font-bold text-amber-500 border-b border-amber-600/30 pb-2">
-                    <Swords className="w-4 h-4" />
-                    <span>Click to Roll Attacks & Actions</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-2.5">
-                    {inspectedCombatant.actions.map((act, idx) => (
-                      <div
-                        key={idx}
-                        className="p-3 rounded-lg bg-surface-100 border border-surface-border hover:border-amber-500/40 transition-all space-y-1.5"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-serif text-sm font-bold text-slate-100">{act.name}</span>
-                          <button
-                            onClick={() => executeAttackRoll(inspectedCombatant, act.name, act.attackBonus, act.damageDice, act.damageType)}
-                            className="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs flex items-center space-x-1.5 shadow-sm transition-all hover:scale-105"
-                          >
-                            <Dices className="w-3.5 h-3.5" />
-                            <span>Roll {act.attackBonus !== undefined ? `+${act.attackBonus}` : ''} {act.damageDice ? `(${act.damageDice})` : ''}</span>
-                          </button>
+              {inspectedCombatant.isPlayer ? (
+                (() => {
+                  const matchedPlayer = db.players.find((p) => p.id === inspectedCombatant.entityId);
+                  if (matchedPlayer) {
+                    return <PlayerStatBlock player={matchedPlayer} />;
+                  }
+                  return (
+                    <div className="p-4 rounded-xl bg-surface-100 border border-surface-border space-y-2">
+                      <div className="font-serif font-bold text-slate-100 text-sm">Character Combat Information</div>
+                      <p className="text-xs text-slate-400">
+                        AC: {inspectedCombatant.armorClass} · Speed: {inspectedCombatant.speed}
+                      </p>
+                      {inspectedCombatant.notes && (
+                        <div className="text-xs text-slate-300 italic pt-2 border-t border-surface-border">
+                          {inspectedCombatant.notes}
                         </div>
-                        <p className="text-xs text-slate-300 leading-relaxed select-text">{act.desc}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                      )}
+                    </div>
+                  );
+                })()
               ) : (
-                <div className="p-4 rounded-xl bg-surface-100 border border-surface-border space-y-2">
-                  <div className="font-serif font-bold text-slate-100 text-sm">Character Combat Information</div>
-                  <p className="text-xs text-slate-400">
-                    AC: {inspectedCombatant.armorClass} · Speed: {inspectedCombatant.speed}
-                  </p>
-                  {inspectedCombatant.notes && (
-                    <div className="text-xs text-slate-300 italic pt-2 border-t border-surface-border">
-                      {inspectedCombatant.notes}
+                <>
+                  {/* Top Banner for Inspected Combatant */}
+                  <div className="p-4 rounded-xl bg-surface-100 border border-surface-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-xs text-slate-400 font-semibold uppercase">Currently Inspecting</div>
+                        <h2 className="font-serif text-xl font-bold text-slate-100">{inspectedCombatant.name}</h2>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setInitiativeModalCombatant(inspectedCombatant)}
+                          className="px-3 py-1.5 bg-surface-50 hover:bg-surface-hover border border-surface-border text-xs font-semibold text-amber-300 rounded-lg flex items-center space-x-1.5 cursor-pointer transition-colors"
+                          title="Click to edit initiative"
+                        >
+                          <Zap className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Init: {inspectedCombatant.initiative}</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setHpModalCombatant(inspectedCombatant);
+                            setIsTempHp(false);
+                          }}
+                          className="px-3 py-1.5 bg-surface-50 hover:bg-surface-hover border border-surface-border text-xs font-semibold text-slate-200 rounded-lg flex items-center space-x-1.5"
+                        >
+                          <Heart className="w-3.5 h-3.5 text-red-400" />
+                          <span>Damage / Heal</span>
+                        </button>
+                        <button
+                          onClick={() => setConditionModalCombatant(inspectedCombatant)}
+                          className="px-3 py-1.5 bg-surface-50 hover:bg-surface-hover border border-surface-border text-xs font-semibold text-slate-200 rounded-lg flex items-center space-x-1.5"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                          <span>Add Condition</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Monster Actions & Attacks */}
+                  {inspectedCombatant.actions && inspectedCombatant.actions.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2 text-sm font-serif font-bold text-amber-500 border-b border-amber-600/30 pb-2">
+                        <Swords className="w-4 h-4" />
+                        <span>Click to Roll Attacks & Actions</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {inspectedCombatant.actions.map((act, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3 rounded-lg bg-surface-100 border border-surface-border hover:border-amber-500/40 transition-all space-y-1.5"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-serif text-sm font-bold text-slate-100">{act.name}</span>
+                              <button
+                                onClick={() => executeAttackRoll(inspectedCombatant, act.name, act.attackBonus, act.damageDice, act.damageType)}
+                                className="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs flex items-center space-x-1.5 shadow-sm transition-all hover:scale-105"
+                              >
+                                <Dices className="w-3.5 h-3.5" />
+                                <span>Roll {act.attackBonus !== undefined ? `+${act.attackBonus}` : ''} {act.damageDice ? `(${act.damageDice})` : ''}</span>
+                              </button>
+                            </div>
+                            <p className="text-xs text-slate-300 leading-relaxed select-text">{act.desc}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
-                </div>
+                </>
               )}
 
               {/* Combat Event Log Drawer */}
@@ -566,6 +653,18 @@ export const CombatTracker: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Edit Initiative Modal */}
+      {initiativeModalCombatant && (
+        <EditInitiativeModal
+          combatant={initiativeModalCombatant}
+          onClose={() => setInitiativeModalCombatant(null)}
+          onSaveInitiative={(combatantId, newInitiative) => {
+            setInitiative(combatantId, newInitiative);
+            showToast(`⚡ Set ${initiativeModalCombatant.name}'s initiative to ${newInitiative}`);
+          }}
+        />
       )}
     </div>
   );

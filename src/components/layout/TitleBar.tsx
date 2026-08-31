@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Minus, Square, Copy, X, Sparkles, Swords, Compass, Tv, Cast, Cloud, RefreshCw, GitBranch } from 'lucide-react';
+import { Minus, Square, Copy, X, Sparkles, Swords, Compass, Tv, Cast, Cloud, RefreshCw, GitBranch, Bookmark } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ExternalDisplayModal } from '../player/ExternalDisplayModal';
 
@@ -10,6 +10,9 @@ export const TitleBar: React.FC = () => {
     combatState, 
     toggleRadialMenu, 
     setIsDiceDrawerOpen,
+    bookmarks,
+    isBookmarksDrawerOpen,
+    toggleBookmarksDrawer,
     isExternalDisplayModalOpen,
     setIsExternalDisplayModalOpen,
     cloudSyncConfig,
@@ -137,6 +140,26 @@ export const TitleBar: React.FC = () => {
             <Sparkles className="w-3.5 h-3.5 text-purple-400" />
             <span>Dice Tray</span>
             <kbd className="px-1.5 py-0.2 bg-surface-100 text-[10px] text-slate-400 rounded border border-surface-border">Ctrl+D</kbd>
+          </button>
+
+          {/* Global Session Bookmarks Quick Access */}
+          <button
+            onClick={toggleBookmarksDrawer}
+            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded border text-xs font-semibold transition-all ${
+              isBookmarksDrawerOpen
+                ? 'bg-amber-500/25 border-amber-500 text-amber-300 shadow-md shadow-amber-950/40'
+                : 'bg-surface-50 hover:bg-surface-hover border-surface-border text-slate-300 hover:text-white'
+            }`}
+            title="Open Session Bookmarks & Quick Access (Ctrl + B)"
+          >
+            <Bookmark className={`w-3.5 h-3.5 ${bookmarks.length > 0 ? 'text-amber-400 fill-amber-400/30' : 'text-amber-400'}`} />
+            <span>Bookmarks</span>
+            {bookmarks.length > 0 && (
+              <span className="px-1.5 py-0.2 bg-amber-500/20 text-amber-300 rounded-full text-[10px] font-mono font-bold border border-amber-500/30">
+                {bookmarks.length}
+              </span>
+            )}
+            <kbd className="px-1.5 py-0.2 bg-surface-100 text-[10px] text-slate-400 rounded border border-surface-border">Ctrl+B</kbd>
           </button>
 
           {/* Cloud Sync Quick Action */}

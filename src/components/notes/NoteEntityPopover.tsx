@@ -253,7 +253,7 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
         elements.push(
           <div
             key={`read-aloud-${lineIdx}`}
-            className={`my-4 p-5 rounded-2xl bg-gradient-to-br from-[#1c1813] to-[#14100b] border-2 border-amber-500/60 shadow-xl text-amber-100/95 italic font-serif leading-relaxed select-text clear-both ${
+            className={`my-4 p-5 rounded-2xl bg-gradient-to-br from-[#1c1813] to-[#14100b] border-2 border-amber-500/60 shadow-xl text-amber-100/95 italic font-book leading-relaxed select-text clear-both ${
               isPlayerSafe ? 'text-base sm:text-lg p-6' : 'text-sm'
             }`}
           >
@@ -262,7 +262,11 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
               <span>Read Aloud</span>
             </div>
             {readAloudBuffer.map((l, idx) => (
-              <p key={idx} className="my-1.5">{renderInlineTags(l)}</p>
+              !l.trim() ? (
+                <div key={idx} className="h-3.5" />
+              ) : (
+                <p key={idx} className="my-1.5">{renderInlineTags(l)}</p>
+              )
             ))}
           </div>
         );
@@ -292,7 +296,11 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
                 <span>GM / DM Tactics & Notes</span>
               </div>
               {dmInfoBuffer.map((l, idx) => (
-                <p key={idx} className="my-1">{renderInlineTags(l)}</p>
+                !l.trim() ? (
+                  <div key={idx} className="h-3" />
+                ) : (
+                  <p key={idx} className="my-1">{renderInlineTags(l)}</p>
+                )
               ))}
             </div>
           );
@@ -324,7 +332,11 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
               </summary>
               <div className="pt-2 text-slate-300 select-text leading-relaxed">
                 {secretsBuffer.map((l, idx) => (
-                  <p key={idx} className="my-1">{renderInlineTags(l)}</p>
+                  !l.trim() ? (
+                    <div key={idx} className="h-3" />
+                  ) : (
+                    <p key={idx} className="my-1">{renderInlineTags(l)}</p>
+                  )
                 ))}
               </div>
             </details>
@@ -489,7 +501,7 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
 
       // Standard Paragraph
       elements.push(
-        <p key={lineIdx} className={`text-slate-200 leading-relaxed select-text my-1.5 ${isPlayerSafe ? 'text-sm sm:text-base font-serif' : 'text-xs'}`}>
+        <p key={lineIdx} className={`text-slate-200 leading-relaxed select-text my-1.5 ${isPlayerSafe ? 'text-sm sm:text-base font-book' : 'text-xs'}`}>
           {renderInlineTags(line)}
         </p>
       );

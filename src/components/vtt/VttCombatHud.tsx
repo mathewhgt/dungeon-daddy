@@ -1,4 +1,3 @@
-import React from 'react';
 import { 
   Swords, 
   ChevronLeft, 
@@ -7,30 +6,54 @@ import {
   Shield, 
   Heart, 
   Sparkles,
-  Users
+  Users,
+  Locate,
+  Skull
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { TokenAvatar } from '../common/TokenAvatar';
+import { getMonsterBadge } from '../../utils/monsterUtils';
+import { Combatant } from '../../types/combat';
+import { DeathSavesTracker } from '../common/DeathSavesTracker';
 
 interface VttCombatHudProps {
   onEndCombat: () => void;
   onOpenStatblock: (combatantId: string) => void;
+  onPingCombatant?: (combatant: Combatant) => void;
+  onOpenInitiativeModal?: (combatant: Combatant) => void;
 }
 
 export const VttCombatHud: React.FC<VttCombatHudProps> = ({
   onEndCombat,
   onOpenStatblock,
+  onPingCombatant,
+  onOpenInitiativeModal,
 }) => {
-  const { combatState, nextTurn, prevTurn } = useApp();
+  const { combatState, nextTurn, prevTurn, setCombatantDeathSaves, rollDeathSave } = useApp();
 
   if (!combatState.isActive || combatState.combatants.length === 0) return null;
 
   const currentCombatant = combatState.combatants[combatState.currentTurnIndex] || combatState.combatants[0];
+  const monsterBadge = !currentCombatant.isPlayer ? (currentCombatant.badge || getMonsterBadge(currentCombatant, combatState.combatants)) : null;
+
+  let combatantDisplayName = currentCombatant.name;
+  if (!currentCombatant.isPlayer && monsterBadge) {
+    const hasTrailingNumber = /\d+$/.test(currentCombatant.name.trim());
+    if (!hasTrailingNumber) {
+      const badgeNum = monsterBadge.replace(/^[A-Z]+/i, '');
+      if (badgeNum) {
+        combatantDisplayName = `${currentCombatant.name} ${badgeNum}`;
+      }
+    }
+  }
+
+  const isPlayerDown = currentCombatant.isPlayer && currentCombatant.currentHp <= 0;
+  const isMonsterDead = !currentCombatant.isPlayer && (currentCombatant.currentHp <= 0 || currentCombatant.defeated);
 
   return (
-    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-[#121720]/95 backdrop-blur-md border border-surface-border rounded-2xl shadow-2xl p-2.5 flex items-center space-x-3 select-none animate-slideDown">
+    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-[#121720]/95 backdrop-blur-md border border-surface-border rounded-2xl shadow-2xl p-2.5 flex items-center space-x-3 select-none animate-slideDown max-w-2xl">
       {/* Round Badge */}
-      <div className="px-3 py-1.5 rounded-xl bg-red-950/80 border border-red-800 text-center">
+      <div className="px-3 py-1.5 rounded-xl bg-red-950/80 border border-red-800 text-center shrink-0">
         <div className="text-[9px] uppercase font-bold text-red-300">Round</div>
         <div className="font-mono font-bold text-base text-red-200 leading-none">{combatState.round}</div>
       </div>
@@ -38,11 +61,21 @@ export const VttCombatHud: React.FC<VttCombatHudProps> = ({
       {/* Active Turn Combatant Card */}
       <div 
         onClick={() => onOpenStatblock(currentCombatant.id)}
-        className="flex items-center space-x-3 px-3 py-1.5 rounded-xl bg-surface-100/70 border border-surface-border hover:border-amber-500/50 cursor-pointer transition-colors group"
-        title="Click to view full 5e statblock"
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          if (onPingCombatant) onPingCombatant(currentCombatant);
+        }}
+        className={`flex items-center space-x-3 px-3 py-1.5 rounded-xl border transition-colors group ${
+          isPlayerDown
+            ? 'bg-red-950/30 border-red-600/60'
+            : isMonsterDead
+            ? 'bg-slate-900/60 border-slate-700 opacity-60'
+            : 'bg-surface-100/70 border-surface-border hover:border-amber-500/50 cursor-pointer'
+        }`}
+        title="Click to view full 5e statblock · Double-click to ping on map"
       >
         <TokenAvatar
-          name={currentCombatant.name}
+          name={combatantDisplayName}
           imageUrl={currentCombatant.avatarUrl}
           tokenUrl={currentCombatant.tokenUrl}
           type={currentCombatant.isPlayer ? 'player' : 'monster'}
@@ -52,11 +85,31 @@ export const VttCombatHud: React.FC<VttCombatHudProps> = ({
         <div>
           <div className="flex items-center space-x-2">
             <span className="font-serif font-bold text-sm text-slate-100 group-hover:text-amber-400 transition-colors">
-              {currentCombatant.name}
+              {combatantDisplayName}
             </span>
-            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500 text-slate-950">
-              INIT {currentCombatant.initiative}
-            </span>
+            {monsterBadge && (
+              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-black bg-pink-950/80 border border-pink-500/60 text-pink-300 shadow-xs">
+                {monsterBadge}
+              </span>
+            )}
+            {isMonsterDead ? (
+              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-red-950 border border-red-700 text-red-300 flex items-center space-x-1">
+                <Skull className="w-3 h-3" />
+                <span>DEAD</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenInitiativeModal?.(currentCombatant);
+                }}
+                className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors cursor-pointer shadow-xs"
+                title="Click to manually edit initiative"
+              >
+                INIT {currentCombatant.initiative}
+              </button>
+            )}
             {currentCombatant.concentratingOn && (
               <span className="px-1.5 py-0.2 rounded bg-cyan-950 border border-cyan-700 text-[10px] font-bold text-cyan-300 flex items-center space-x-1">
                 <Sparkles className="w-3 h-3 text-cyan-400" />
@@ -66,7 +119,9 @@ export const VttCombatHud: React.FC<VttCombatHudProps> = ({
           </div>
 
           <div className="text-[11px] text-slate-400 font-mono flex items-center space-x-2">
-            <span>HP {currentCombatant.currentHp}/{currentCombatant.maxHp}</span>
+            <span className={isPlayerDown ? 'text-red-400 font-bold' : ''}>
+              HP {currentCombatant.currentHp}/{currentCombatant.maxHp}
+            </span>
             <span>·</span>
             <span>AC {currentCombatant.armorClass}</span>
           </div>
@@ -82,6 +137,18 @@ export const VttCombatHud: React.FC<VttCombatHudProps> = ({
                   {cond.name}
                 </span>
               ))}
+            </div>
+          )}
+
+          {/* Death Saving Throws on Player Turn at 0 HP */}
+          {isPlayerDown && (
+            <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+              <DeathSavesTracker
+                saves={currentCombatant.deathSaves}
+                onChange={(saves) => setCombatantDeathSaves(currentCombatant.id, saves)}
+                onRoll={() => rollDeathSave(currentCombatant.id)}
+                lastHealAmount={currentCombatant.lastHealAmount}
+              />
             </div>
           )}
         </div>

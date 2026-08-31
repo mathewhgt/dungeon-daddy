@@ -75,6 +75,8 @@ export const RadialMenu: React.FC = () => {
     setSelectedMonster,
     setSelectedSpell,
     setSelectedItem,
+    setSelectedNoteId,
+    setSelectedPlayerId,
   } = useApp();
 
   const [hoveredSlice, setHoveredSlice] = useState<RadialSlice | null>(null);
@@ -380,6 +382,12 @@ export const RadialMenu: React.FC = () => {
         setActiveMapId(result.mapId);
       }
       setActiveTab('maps');
+    } else if (result.targetTab === 'party') {
+      setSelectedPlayerId(result.id);
+      setActiveTab('party');
+    } else if (result.targetTab === 'notes') {
+      setSelectedNoteId(result.id);
+      setActiveTab('notes');
     } else {
       setActiveTab(result.targetTab);
     }

@@ -31,6 +31,7 @@ import { TokenAvatar } from '../common/TokenAvatar';
 import { useApp } from '../../context/AppContext';
 import { CharacterPrintModal } from './CharacterPrintModal';
 import { EntityEditorModal } from '../compendium/EntityEditorModal';
+import { BookmarkButton } from '../bookmarks/BookmarkButton';
 
 interface CharacterSheetViewProps {
   player: PlayerEntity;
@@ -193,6 +194,18 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center space-x-2 flex-wrap gap-1.5">
+          <BookmarkButton
+            type="player"
+            targetId={player.id}
+            title={player.name}
+            subtitle={`Lv ${player.level} ${player.race} ${player.characterClass}`}
+            category="Hero"
+            imageUrl={player.avatarUrl || player.tokenUrl}
+            campaignId={player.campaignId}
+            showText
+            size="md"
+          />
+
           <button
             type="button"
             onClick={() => playerRest(player.id, 'short')}

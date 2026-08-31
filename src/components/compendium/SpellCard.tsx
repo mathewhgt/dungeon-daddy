@@ -3,6 +3,7 @@ import { Sparkles, Clock, Target, Dices, BookOpen, Edit3, Trash2 } from 'lucide-
 import { SpellEntity } from '../../types/spell';
 import { useApp } from '../../context/AppContext';
 import { TokenAvatar } from '../common/TokenAvatar';
+import { BookmarkButton } from '../bookmarks/BookmarkButton';
 
 interface SpellCardProps {
   spell: SpellEntity;
@@ -96,6 +97,17 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, onEdit, onDelete })
         </div>
 
         <div className="flex items-center space-x-2">
+          <BookmarkButton
+            type="spell"
+            targetId={spell.id}
+            title={spell.name}
+            subtitle={`${spell.level === 0 ? 'Cantrip' : `Level ${spell.level} Spell`} • ${spell.school}`}
+            category="Spell"
+            imageUrl={spell.imageUrl}
+            showText
+            size="md"
+          />
+
           {onEdit && (
             <button
               onClick={onEdit}

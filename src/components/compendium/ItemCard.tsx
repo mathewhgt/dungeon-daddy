@@ -3,6 +3,7 @@ import { Shield, Sparkles, Sword, DollarSign, Feather, Dices, Edit3, Trash2 } fr
 import { ItemEntity } from '../../types/item';
 import { useApp } from '../../context/AppContext';
 import { TokenAvatar } from '../common/TokenAvatar';
+import { BookmarkButton } from '../bookmarks/BookmarkButton';
 
 interface ItemCardProps {
   item: ItemEntity;
@@ -70,6 +71,17 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onEdit, onDelete }) =>
         </div>
 
         <div className="flex items-center space-x-2">
+          <BookmarkButton
+            type="item"
+            targetId={item.id}
+            title={item.name}
+            subtitle={`${item.rarity} ${item.itemType}`}
+            category="Item"
+            imageUrl={item.imageUrl}
+            showText
+            size="md"
+          />
+
           {onEdit && (
             <button
               onClick={onEdit}

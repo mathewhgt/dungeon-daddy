@@ -32,6 +32,7 @@ import { RollTableEntity } from '../../types/rollTable';
 import { generateCsvTemplate, exportEntitiesToCsv } from '../../services/templateEngine';
 import { EntityType } from '../../types/entity';
 import { fuzzyMatch, fuzzyMatchMultiple } from '../../utils/searchUtils';
+import { BookmarkButton } from '../bookmarks/BookmarkButton';
 
 export const CompendiumView: React.FC = () => {
   const { 
@@ -918,6 +919,16 @@ export const CompendiumView: React.FC = () => {
                         <Dices className="w-4 h-4" />
                         <span>Roll on Table ({currentTable.diceFormula})</span>
                       </button>
+
+                      <BookmarkButton
+                        type="table"
+                        targetId={currentTable.id}
+                        title={currentTable.name}
+                        subtitle={`Roll Table • ${currentTable.diceFormula || 'd20'} • ${currentTable.items.length} rows`}
+                        category="Roll Table"
+                        showText
+                        size="md"
+                      />
 
                       <button
                         onClick={() => {
