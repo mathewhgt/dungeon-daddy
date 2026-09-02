@@ -21,7 +21,17 @@ export const EntityEditorModal: React.FC<EntityEditorModalProps> = ({
   const template: TemplateDefinition = templates[type];
 
   const [formData, setFormData] = useState<Record<string, any>>(() => {
-    if (initialData) return { ...initialData };
+    if (initialData) {
+      const init = { ...initialData };
+      if (type === 'player' && initialData.sensesConfig) {
+        init.normalSight = initialData.sensesConfig.normalSight ?? 60;
+        init.darkvision = initialData.sensesConfig.darkvision ?? 0;
+        init.blindsight = initialData.sensesConfig.blindsight ?? 0;
+        init.truesight = initialData.sensesConfig.truesight ?? 0;
+        init.tremorsense = initialData.sensesConfig.tremorsense ?? 0;
+      }
+      return init;
+    }
     const defaults: Record<string, any> = {
       id: `${type}-${Date.now()}`,
       type,
@@ -63,6 +73,33 @@ export const EntityEditorModal: React.FC<EntityEditorModalProps> = ({
       ...formData,
       updatedAt: new Date().toISOString(),
     };
+
+    if (type === 'player') {
+      const normalSight = parseInt(formData.normalSight ?? '60', 10) || 60;
+      const darkvision = parseInt(formData.darkvision ?? '0', 10) || 0;
+      const blindsight = parseInt(formData.blindsight ?? '0', 10) || 0;
+      const truesight = parseInt(formData.truesight ?? '0', 10) || 0;
+      const tremorsense = parseInt(formData.tremorsense ?? '0', 10) || 0;
+
+      payload.sensesConfig = {
+        normalSight,
+        darkvision,
+        blindsight,
+        truesight,
+        tremorsense,
+      };
+
+      if (formData.str !== undefined) {
+        payload.abilities = {
+          str: parseInt(formData.str || '10', 10),
+          dex: parseInt(formData.dex || '10', 10),
+          con: parseInt(formData.con || '10', 10),
+          int: parseInt(formData.int || '10', 10),
+          wis: parseInt(formData.wis || '10', 10),
+          cha: parseInt(formData.cha || '10', 10),
+        };
+      }
+    }
 
     if (type === 'monster') {
       payload.abilities = {

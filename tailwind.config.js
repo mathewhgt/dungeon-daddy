@@ -31,9 +31,12 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
-        serif: ['Cinzel', 'Georgia', 'Cambria', 'serif'],
-        book: ['Georgia', 'Cambria', '"Times New Roman"', 'serif'],
+        sans: ['"FF Scala Sans"', '"ScalaSansOffc"', '"Scaly Sans"', 'Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+        serif: ['"MrsEavesAllSmallCaps"', '"Mrs Eaves Small Caps"', '"Mr Eaves Small Caps"', 'Cinzel', 'Georgia', 'serif'],
+        heading: ['"MrsEavesAllSmallCaps"', '"Mrs Eaves Small Caps"', '"Mr Eaves Small Caps"', 'Cinzel', 'Georgia', 'serif'],
+        book: ['"Bookmania"', '"Bookinsanity"', 'Georgia', 'Cambria', '"Times New Roman"', 'serif'],
+        scaly: ['"FF Scala Sans"', '"ScalaSansOffc Bold"', '"ScalaSansOffc"', '"Scaly Sans"', 'sans-serif'],
+        scalyCaps: ['"Scaly Sans Caps"', '"Scala Sans Caps"', '"FF Scala Sans"', '"Scaly Sans"', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
       }
     },

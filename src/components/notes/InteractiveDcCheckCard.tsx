@@ -88,12 +88,12 @@ export const InteractiveDcCheckCard: React.FC<InteractiveDcCheckCardProps> = ({
             <Dices className="w-4 h-4" />
           </div>
           <div>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold">
+            <div className="text-[10px] font-scalyCaps uppercase tracking-wider text-amber-400 font-bold">
               5e Ability / Skill Check
             </div>
             <div className="font-serif font-bold text-sm text-slate-100 flex items-center space-x-2">
               <span>{skill || 'Ability Check'}</span>
-              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-mono font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-scaly font-bold">
                 {dcs.length > 1 ? `DC ${dcs.join(' / ')}` : `DC ${primaryDc}`}
               </span>
             </div>

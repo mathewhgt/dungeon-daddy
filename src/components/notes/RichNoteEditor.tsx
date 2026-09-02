@@ -12,6 +12,8 @@ import {
   Heading3, 
   Bold, 
   Italic, 
+  Underline,
+  Strikethrough,
   List, 
   ListOrdered, 
   Quote, 
@@ -72,7 +74,7 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === '\\' || e.key === '/') {
+    if (e.key === '\\') {
       const textarea = e.currentTarget;
       const rect = textarea.getBoundingClientRect();
       const cursorPos = textarea.selectionStart;
@@ -88,7 +90,7 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
         setSlashMenu({
           isOpen: true,
           query: '',
-          triggerChar: e.key as '/' | '\\',
+          triggerChar: '\\',
           triggerPos: cursorPos,
           position: { top, left },
         });
@@ -102,12 +104,10 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
 
     const cursorPos = e.target.selectionStart;
     const textBeforeCursor = val.substring(0, cursorPos);
-    const lastSlashIdx = textBeforeCursor.lastIndexOf('/');
-    const lastBackslashIdx = textBeforeCursor.lastIndexOf('\\');
-    const triggerIdx = Math.max(lastSlashIdx, lastBackslashIdx);
+    const triggerIdx = textBeforeCursor.lastIndexOf('\\');
 
     if (triggerIdx !== -1) {
-      const char = textBeforeCursor[triggerIdx] as '/' | '\\';
+      const char = '\\';
       const textAfterTrigger = textBeforeCursor.substring(triggerIdx + 1);
 
       if (!textAfterTrigger.includes('\n') && textAfterTrigger.length <= 20) {
@@ -162,8 +162,33 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const selected = content.substring(start, end);
-    const replacement = `${prefix}${selected || 'text'}${suffix}`;
 
+    // Toggle off: If selected is already wrapped in prefix & suffix, unwrap it!
+    if (suffix && selected.startsWith(prefix) && selected.endsWith(suffix) && selected.length >= prefix.length + suffix.length) {
+      const unwrapped = selected.substring(prefix.length, selected.length - suffix.length);
+      const newContent = content.substring(0, start) + unwrapped + content.substring(end);
+      setContent(newContent);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start, start + unwrapped.length);
+      }, 30);
+      return;
+    }
+
+    // Toggle off: Line headings like # , ## , ###
+    const trimmedPrefix = prefix.trim();
+    if (!suffix && trimmedPrefix.startsWith('#') && selected.startsWith(trimmedPrefix)) {
+      const unwrapped = selected.replace(new RegExp(`^${trimmedPrefix}\\s*`), '');
+      const newContent = content.substring(0, start) + unwrapped + content.substring(end);
+      setContent(newContent);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start, start + unwrapped.length);
+      }, 30);
+      return;
+    }
+
+    const replacement = `${prefix}${selected || 'text'}${suffix}`;
     const newContent = content.substring(0, start) + replacement + content.substring(end);
     setContent(newContent);
 
@@ -185,15 +210,19 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
     } else if (blockType === 'columns') {
       insertTextAtCursor('\n:::columns\n:::column\n### Column 1\nWrite details or insert image here...\n:::\n:::column\n### Column 2\nWrite details or insert image here...\n:::\n:::\n');
     } else if (blockType === 'h1') {
-      insertTextAtCursor('\n# ');
+      insertTextAtCursor('# ');
     } else if (blockType === 'h2') {
-      insertTextAtCursor('\n## ');
+      insertTextAtCursor('## ');
     } else if (blockType === 'h3') {
-      insertTextAtCursor('\n### ');
+      insertTextAtCursor('### ');
     } else if (blockType === 'bold') {
       insertTextAtCursor('**', '**');
     } else if (blockType === 'italic') {
       insertTextAtCursor('*', '*');
+    } else if (blockType === 'underline') {
+      insertTextAtCursor('<u>', '</u>');
+    } else if (blockType === 'strikethrough') {
+      insertTextAtCursor('~~', '~~');
     } else if (blockType === 'bullet') {
       insertTextAtCursor('\n- ');
     } else if (blockType === 'numbered') {
@@ -352,10 +381,10 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
               });
             }}
             className="px-2.5 py-1 rounded-lg bg-surface-50 hover:bg-surface-hover border border-surface-border text-amber-300 font-mono text-xs font-bold flex items-center space-x-1.5"
-            title="Open Slash / Command Menu (or type \ or / in editor)"
+            title="Open Insert Command Menu (or type \ in editor)"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>\ Slash Menu</span>
+            <span>\ Command Menu</span>
           </button>
 
           <div className="h-4 w-px bg-surface-border mx-1" />
@@ -482,6 +511,22 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
           </button>
           <button
             type="button"
+            onClick={() => handleInsertBlock('underline')}
+            className="p-1.5 rounded hover:bg-surface-hover text-slate-300"
+            title="Underline (<u>text</u>)"
+          >
+            <Underline className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleInsertBlock('strikethrough')}
+            className="p-1.5 rounded hover:bg-surface-hover text-slate-300"
+            title="Strikethrough (~~text~~)"
+          >
+            <Strikethrough className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
             onClick={() => handleInsertBlock('bullet')}
             className="p-1.5 rounded hover:bg-surface-hover text-slate-300"
             title="Bullet List (- item)"
@@ -516,7 +561,7 @@ export const RichNoteEditor: React.FC<RichNoteEditorProps> = ({
                 value={content}
                 onChange={handleContentChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Write adventure notes, DM boxed text, dialogue, and secrets here... (Type \ or / for commands)"
+                placeholder="Write adventure notes, DM boxed text, dialogue, and secrets here... (Type \ for commands)"
                 className="w-full flex-1 bg-transparent text-slate-100 text-xs font-mono resize-none focus:outline-none leading-relaxed p-2"
               />
             </div>

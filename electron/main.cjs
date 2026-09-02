@@ -22,6 +22,7 @@ function getAppIconPath() {
 
 let mainWindow = null;
 let playerWindow = null;
+let notesWindow = null;
 let localServer = null;
 const serverSockets = new Set();
 const HTTP_PORT = 5174;
@@ -452,6 +453,75 @@ function createWindow() {
     });
 
     mainWindow?.webContents.send('display:playerWindowOpened');
+  });
+
+  // Pop-out Adventure Notes Window Handlers
+  ipcMain.on('notes:openWindow', (event, { noteId, campaignId } = {}) => {
+    if (notesWindow && !notesWindow.isDestroyed()) {
+      notesWindow.focus();
+      if (noteId || campaignId) {
+        notesWindow.webContents.send('notes:setNoteId', { noteId, campaignId });
+      }
+      return;
+    }
+
+    const primaryDisplay = screen.getPrimaryDisplay();
+    notesWindow = new BrowserWindow({
+      width: 1050,
+      height: 860,
+      x: Math.max(50, primaryDisplay.bounds.x + primaryDisplay.bounds.width - 1100),
+      y: primaryDisplay.bounds.y + 60,
+      minWidth: 600,
+      minHeight: 450,
+      frame: true,
+      backgroundColor: '#090d12',
+      title: 'Dungeon Daddy - Adventure Notes',
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.cjs'),
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+      icon: getAppIconPath(),
+    });
+
+    const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
+    const queryObj = { view: 'notes' };
+    if (noteId) queryObj.noteId = noteId;
+    if (campaignId) queryObj.campaignId = campaignId;
+
+    if (isDev) {
+      const url = new URL('http://localhost:5173/');
+      url.searchParams.set('view', 'notes');
+      if (noteId) url.searchParams.set('noteId', noteId);
+      if (campaignId) url.searchParams.set('campaignId', campaignId);
+      notesWindow.loadURL(url.toString());
+    } else {
+      notesWindow.loadFile(path.join(__dirname, '../dist/index.html'), { query: queryObj });
+    }
+
+    notesWindow.on('closed', () => {
+      notesWindow = null;
+    });
+  });
+
+  ipcMain.on('notes:setAlwaysOnTop', (event, flag) => {
+    if (notesWindow && !notesWindow.isDestroyed()) {
+      notesWindow.setAlwaysOnTop(Boolean(flag));
+    }
+  });
+
+  ipcMain.handle('notes:isAlwaysOnTop', () => {
+    if (notesWindow && !notesWindow.isDestroyed()) {
+      return notesWindow.isAlwaysOnTop();
+    }
+    return false;
+  });
+
+  ipcMain.on('notes:closeWindow', () => {
+    if (notesWindow && !notesWindow.isDestroyed()) {
+      notesWindow.close();
+      notesWindow = null;
+    }
   });
 
   ipcMain.on('display:closePlayerWindow', () => {

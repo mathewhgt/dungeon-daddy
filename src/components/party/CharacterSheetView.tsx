@@ -31,6 +31,7 @@ import { TokenAvatar } from '../common/TokenAvatar';
 import { useApp } from '../../context/AppContext';
 import { CharacterPrintModal } from './CharacterPrintModal';
 import { EntityEditorModal } from '../compendium/EntityEditorModal';
+import { SensesEditorModal } from './SensesEditorModal';
 import { BookmarkButton } from '../bookmarks/BookmarkButton';
 
 interface CharacterSheetViewProps {
@@ -50,6 +51,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isSensesModalOpen, setIsSensesModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'combat' | 'features' | 'equipment' | 'lore'>('combat');
 
   const abilities = player.abilities || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
@@ -353,7 +355,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
         </div>
 
         {/* Combat Vitals Strip */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 text-xs">
           {/* Armor Class */}
           <div className="p-3.5 rounded-xl bg-surface-100 border border-surface-border flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
@@ -431,6 +433,33 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
               <div className="text-[10px] text-slate-400 font-bold uppercase">Passive Senses</div>
               <div className="text-xl font-bold font-mono text-indigo-300">{player.passivePerception || 10 + mods.wis}</div>
               <div className="text-[10px] text-slate-500">Perception</div>
+            </div>
+          </div>
+
+          {/* Vision & Senses */}
+          <div
+            onClick={() => setIsSensesModalOpen(true)}
+            className="p-3.5 rounded-xl bg-surface-100 border border-surface-border flex items-center space-x-3 cursor-pointer hover:border-cyan-500/50 hover:bg-surface-hover transition-all group"
+            title="Click to configure Darkvision, Blindsight, Truesight, Tremorsense"
+          >
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <Eye className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between">
+                <div className="text-[10px] text-slate-400 font-bold uppercase">Vision</div>
+                <span className="text-[10px] text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity">Edit ✎</span>
+              </div>
+              <div className="text-xl font-bold font-mono text-cyan-300 truncate">
+                {player.sensesConfig?.darkvision 
+                  ? `${player.sensesConfig.darkvision} ft.` 
+                  : (player.race?.toLowerCase().includes('elf') || player.race?.toLowerCase().includes('dwarf') || player.race?.toLowerCase().includes('tiefling') ? '60 ft.' : 'Normal')}
+              </div>
+              <div className="text-[10px] text-slate-500 truncate">
+                {player.sensesConfig?.darkvision || (player.race?.toLowerCase().includes('elf') || player.race?.toLowerCase().includes('dwarf') || player.race?.toLowerCase().includes('tiefling'))
+                  ? 'Darkvision' 
+                  : 'Sight 60 ft.'}
+              </div>
             </div>
           </div>
         </div>
@@ -764,6 +793,14 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
           initialData={player}
           onClose={() => setIsEditorOpen(false)}
           onSave={(updatedData) => savePlayer(updatedData)}
+        />
+      )}
+
+      {/* Senses & Vision Modal */}
+      {isSensesModalOpen && (
+        <SensesEditorModal
+          player={player}
+          onClose={() => setIsSensesModalOpen(false)}
         />
       )}
     </div>

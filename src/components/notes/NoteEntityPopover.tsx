@@ -17,25 +17,37 @@ import {
   ZoomIn,
   Tv,
   Compass,
-  Maximize2
+  Maximize2,
+  ArrowRight,
+  ExternalLink
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { MonsterStatBlock } from '../compendium/MonsterStatBlock';
 import { SpellCard } from '../compendium/SpellCard';
 import { ItemCard } from '../compendium/ItemCard';
+import { crossWindowService } from '../../services/crossWindowService';
+import { NoteCoverBanner } from './NoteCoverBanner';
+import { openNotesWindow } from './LiveNoteEditor';
+import { getNoteCategoryIcon, getNoteCategoryStyle } from './NotesView';
 
 interface NoteContentRendererProps {
   content: string;
   isPlayerSafe?: boolean;
   className?: string;
+  coverImageUrl?: string;
+  coverImagePositionY?: number;
+  coverImageHeight?: number;
 }
 
 export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({ 
   content, 
   isPlayerSafe = false,
-  className = '' 
+  className = '',
+  coverImageUrl,
+  coverImagePositionY,
+  coverImageHeight
 }) => {
-  const { db, projectMediaToDisplay, showToast } = useApp();
+  const { db, setActiveMapId, setActiveTab, setSelectedNoteId, projectMediaToDisplay, showToast } = useApp();
   const [activeEntityModal, setActiveEntityModal] = useState<{ type: string; id: string } | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ src: string; alt?: string; caption?: string } | null>(null);
 
@@ -518,8 +530,8 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
     if (!str) return str;
 
     const parseMarkdownSpans = (text: string, keyPrefix: string): React.ReactNode => {
-      // Matches **bold**, *italic*, `code`
-      const mdRegex = /(\*\*(.*?)\*\*|\*(.*?)\*|`(.*?)`)/g;
+      // Matches **bold**, *italic*, `code`, ~~strikethrough~~, <u>underline</u>, <ins>underline</ins>
+      const mdRegex = /(\*\*(.*?)\*\*|\*(.*?)\*|`(.*?)`|~~(.*?)~~|<u>(.*?)<\/u>|<ins>(.*?)<\/ins>)/g;
       const subParts: React.ReactNode[] = [];
       let subLastIndex = 0;
       let mdMatch;
@@ -547,6 +559,19 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
               {mdMatch[4]}
             </code>
           );
+        } else if (mdMatch[5] !== undefined) {
+          subParts.push(
+            <del key={`${keyPrefix}-del-${mdMatch.index}`} className="line-through text-slate-400">
+              {mdMatch[5]}
+            </del>
+          );
+        } else if (mdMatch[6] !== undefined || mdMatch[7] !== undefined) {
+          const uContent = mdMatch[6] !== undefined ? mdMatch[6] : mdMatch[7];
+          subParts.push(
+            <span key={`${keyPrefix}-u-${mdMatch.index}`} className="underline decoration-amber-400/70 underline-offset-2">
+              {uContent}
+            </span>
+          );
         }
 
         subLastIndex = mdMatch.index + mdMatch[0].length;
@@ -559,7 +584,7 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
       return subParts.length > 0 ? <React.Fragment key={keyPrefix}>{subParts}</React.Fragment> : text;
     };
 
-    const tagRegex = /@\[(.*?)\]\((monster|spell|item|note):([^\)]+)\)/g;
+    const tagRegex = /@\[(.*?)\]\((monster|spell|item|npc|rule|note|map):([^\)]+)\)|\[\[(monster|spell|item|npc|rule|note|map):([^:\]]+)(?::([^\]]+))?\]\]/g;
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
     let match;
@@ -570,14 +595,24 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
         parts.push(parseMarkdownSpans(str.substring(lastIndex, matchIndex), `txt-${matchIndex}`));
       }
 
-      const label = match[1];
-      const entityType = match[2];
-      const entityId = match[3];
+      // Format 1: @[label](type:id) -> match[1]=label, match[2]=type, match[3]=id
+      // Format 2: [[type:label:id]] -> match[4]=type, match[5]=label, match[6]=id (or label)
+      const label = match[1] || match[5] || '';
+      const entityType = match[2] || match[4] || 'note';
+      const entityId = match[3] || match[6] || match[5] || '';
 
       let badgeColor = 'bg-amber-950/80 border-amber-700 text-amber-300 hover:bg-amber-900';
-      if (entityType === 'spell') badgeColor = 'bg-indigo-950/80 border-indigo-700 text-indigo-300 hover:bg-indigo-900';
-      if (entityType === 'item') badgeColor = 'bg-emerald-950/80 border-emerald-700 text-emerald-300 hover:bg-emerald-900';
-      if (entityType === 'note') badgeColor = 'bg-purple-950/80 border-purple-700 text-purple-300 hover:bg-purple-900';
+      let icon = '🔮';
+      if (entityType === 'map') {
+        badgeColor = 'bg-emerald-950/80 border-emerald-700 text-emerald-300 hover:bg-emerald-900';
+        icon = '🗺️';
+      } else if (entityType === 'spell') {
+        badgeColor = 'bg-indigo-950/80 border-indigo-700 text-indigo-300 hover:bg-indigo-900';
+      } else if (entityType === 'item') {
+        badgeColor = 'bg-teal-950/80 border-teal-700 text-teal-300 hover:bg-teal-900';
+      } else if (entityType === 'note') {
+        badgeColor = 'bg-purple-950/80 border-purple-700 text-purple-300 hover:bg-purple-900';
+      }
 
       parts.push(
         <button
@@ -585,14 +620,21 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
+            if (entityType === 'map') {
+              setActiveMapId(entityId);
+              setActiveTab('maps');
+              showToast(`Opened battlemap: ${label}`);
+              crossWindowService.broadcast({ type: 'SWITCH_MAP', mapId: entityId });
+              return;
+            }
             if (!isPlayerSafe) {
               setActiveEntityModal({ type: entityType, id: entityId });
             }
           }}
-          className={`inline-flex items-center space-x-1 px-1.5 py-0.2 rounded border font-semibold text-[11px] transition-all cursor-pointer shadow-xs mx-0.5 ${badgeColor}`}
-          title={`Click to inspect ${label} (${entityType})`}
+          className={`inline-flex items-center space-x-1 px-1.5 py-0.2 rounded border font-scaly font-bold text-[11px] transition-all cursor-pointer shadow-xs mx-0.5 ${badgeColor}`}
+          title={entityType === 'map' ? `Click to open battlemap: ${label}` : `Click to inspect ${label} (${entityType})`}
         >
-          <span>{label}</span>
+          <span>{icon} {label}</span>
         </button>
       );
 
@@ -616,31 +658,116 @@ export const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
   const itemEntity = activeEntityModal?.type === 'item'
     ? db?.items?.find((i) => i.id === activeEntityModal.id)
     : null;
+  const noteEntity = activeEntityModal?.type === 'note'
+    ? (() => {
+        for (const c of db?.campaigns || []) {
+          const match = (c.notes || []).find((n) => n.id === activeEntityModal.id);
+          if (match) return { note: match, campaignId: c.id };
+        }
+        return null;
+      })()
+    : null;
 
   return (
     <div className={className}>
+      {coverImageUrl && (
+        <div className="mb-4">
+          <NoteCoverBanner
+            imageUrl={coverImageUrl}
+            positionY={coverImagePositionY}
+            height={coverImageHeight || 240}
+            isEditable={false}
+          />
+        </div>
+      )}
       <div className="space-y-1 clearfix">{renderFormattedMarkdown(content)}</div>
 
-      {/* Interactive Entity Statblock Modal */}
+      {/* Interactive Entity Statblock / Note Modal */}
       {activeEntityModal && !isPlayerSafe && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 select-none"
           onClick={() => setActiveEntityModal(null)}
         >
           <div 
-            className="bg-[#121720] border border-surface-border rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-5 relative animate-scaleUp"
+            className="bg-[#121720] border border-surface-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-5 relative animate-scaleUp"
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              onClick={() => setActiveEntityModal(null)}
-              className="absolute top-4 right-4 p-1 rounded text-slate-400 hover:text-white bg-surface-100 border border-surface-border z-10"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            {/* Top Right Actions */}
+            <div className="absolute top-4 right-4 flex items-center space-x-2 z-10">
+              {noteEntity && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveEntityModal(null);
+                      setSelectedNoteId(noteEntity.note.id);
+                      setActiveTab('notes');
+                      crossWindowService.broadcast({ type: 'SWITCH_NOTE', noteId: noteEntity.note.id });
+                      showToast(`Navigated to "${noteEntity.note.name}"`);
+                    }}
+                    className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs flex items-center space-x-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
+                    title="Navigate to and open this note in the editor"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span>Navigate to Note</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openNotesWindow(noteEntity.note.id, noteEntity.campaignId);
+                    }}
+                    className="p-1.5 bg-surface-50 hover:bg-surface-hover text-slate-300 hover:text-amber-300 border border-surface-border rounded-lg transition-colors cursor-pointer"
+                    title="Open in Pop-out Window"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+
+              <button
+                onClick={() => setActiveEntityModal(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white bg-surface-100 hover:bg-surface-hover border border-surface-border transition-colors cursor-pointer"
+                title="Close modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
             {monsterEntity && <MonsterStatBlock monster={monsterEntity} />}
             {spellEntity && <SpellCard spell={spellEntity} />}
             {itemEntity && <ItemCard item={itemEntity} />}
+            {noteEntity && (() => {
+              const targetNote = noteEntity.note;
+              const catStyle = getNoteCategoryStyle(targetNote.category || 'General');
+              const CatIcon = getNoteCategoryIcon(targetNote.category || 'General');
+
+              return (
+                <div className="space-y-3.5 pt-1 select-text">
+                  <div className="flex items-center space-x-2 pr-48">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold border flex items-center space-x-1 ${catStyle.badgeBg}`}>
+                      <CatIcon className={`w-3 h-3 ${catStyle.iconClass}`} />
+                      <span>{targetNote.category || 'Note'}</span>
+                    </span>
+                    <h3 className="font-serif text-xl font-bold text-slate-100 truncate">{targetNote.name}</h3>
+                  </div>
+
+                  {targetNote.coverImageUrl && (
+                    <div className="rounded-xl overflow-hidden border border-surface-border max-h-48 relative">
+                      <img 
+                        src={targetNote.coverImageUrl} 
+                        alt={targetNote.name}
+                        className="w-full h-40 object-cover object-center" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#121720] via-transparent to-transparent opacity-80" />
+                    </div>
+                  )}
+
+                  <div className="text-slate-300 text-xs leading-relaxed max-h-[60vh] overflow-y-auto pr-1">
+                    {renderFormattedMarkdown(targetNote.content || '')}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

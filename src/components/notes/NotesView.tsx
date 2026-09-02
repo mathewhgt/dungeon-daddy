@@ -363,7 +363,7 @@ export const NotesView: React.FC = () => {
                     ) : (
                       <Folder className="w-4 h-4 text-amber-500 shrink-0" />
                     )}
-                    <span className="font-semibold text-slate-200 truncate">{item.name}</span>
+                    <span className="font-semibold text-slate-200 truncate font-scaly">{item.name}</span>
                   </div>
 
                   <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
@@ -451,10 +451,10 @@ export const NotesView: React.FC = () => {
                   ) : (
                     <CatIcon className={`w-3.5 h-3.5 shrink-0 ${style.iconClass}`} />
                   )}
-                  <span className={`truncate ${isSelected ? style.textClass : ''}`}>{item.name}</span>
+                  <span className={`truncate font-scaly ${isSelected ? style.textClass : ''}`}>{item.name}</span>
                 </div>
                 <div className="flex items-center space-x-1 shrink-0">
-                  <span className={`px-1 py-0.2 rounded text-[9px] font-bold border ${style.badgeBg}`}>
+                  <span className={`px-1 py-0.2 rounded text-[9px] font-scaly font-bold border ${style.badgeBg}`}>
                     {item.category}
                   </span>
                   {item.isPlayerVisible && (
@@ -968,6 +968,7 @@ export const NotesView: React.FC = () => {
             ) : (
               /* Unified Live In-Place Markdown Note Editor */
               <LiveNoteEditor
+                key={selectedNote.id}
                 note={selectedNote}
                 campaignId={campaign.id}
                 folders={folders}

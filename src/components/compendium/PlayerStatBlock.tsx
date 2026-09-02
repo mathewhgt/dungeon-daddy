@@ -27,6 +27,7 @@ import { TokenAvatar } from '../common/TokenAvatar';
 import { BookmarkButton } from '../bookmarks/BookmarkButton';
 import { useApp } from '../../context/AppContext';
 import { EntityEditorModal } from './EntityEditorModal';
+import { SensesEditorModal } from '../party/SensesEditorModal';
 
 interface PlayerStatBlockProps {
   player: PlayerEntity;
@@ -50,6 +51,7 @@ export const PlayerStatBlock: React.FC<PlayerStatBlockProps> = ({
   } = useApp();
 
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isSensesModalOpen, setIsSensesModalOpen] = useState(false);
 
   const abilities = player.abilities || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
   const level = player.level || 1;
@@ -766,14 +768,41 @@ export const PlayerStatBlock: React.FC<PlayerStatBlockProps> = ({
             <strong className="text-amber-400">Languages:</strong> {player.proficiencies.languages.join(', ')}
           </div>
         )}
-        {player.sensesConfig && (
-          <div>
-            <strong className="text-amber-400">Senses:</strong> Sight {player.sensesConfig.normalSight} ft.
-            {player.sensesConfig.darkvision > 0 && `, Darkvision ${player.sensesConfig.darkvision} ft.`}
-            {player.sensesConfig.blindsight > 0 && `, Blindsight ${player.sensesConfig.blindsight} ft.`}
-            {player.sensesConfig.truesight > 0 && `, Truesight ${player.sensesConfig.truesight} ft.`}
-          </div>
-        )}
+        {/* Senses (Configured or Racial Default) */}
+        {(() => {
+          const darkvision = player.sensesConfig?.darkvision ?? (
+            player.race?.toLowerCase().includes('elf') || 
+            player.race?.toLowerCase().includes('dwarf') || 
+            player.race?.toLowerCase().includes('tiefling') || 
+            player.race?.toLowerCase().includes('gnome') || 
+            player.race?.toLowerCase().includes('half-orc') || 
+            player.race?.toLowerCase().includes('orc') ? 60 : 0
+          );
+          const normalSight = player.sensesConfig?.normalSight ?? 60;
+          const blindsight = player.sensesConfig?.blindsight ?? 0;
+          const truesight = player.sensesConfig?.truesight ?? 0;
+          const tremorsense = player.sensesConfig?.tremorsense ?? 0;
+
+          return (
+            <div className="flex items-center justify-between group">
+              <div>
+                <strong className="text-amber-400">Senses:</strong> Sight {normalSight} ft.
+                {darkvision > 0 && `, Darkvision ${darkvision} ft.`}
+                {blindsight > 0 && `, Blindsight ${blindsight} ft.`}
+                {truesight > 0 && `, Truesight ${truesight} ft.`}
+                {tremorsense > 0 && `, Tremorsense ${tremorsense} ft.`}
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSensesModalOpen(true)}
+                className="px-1.5 py-0.5 rounded text-[10px] text-slate-400 hover:text-cyan-400 hover:bg-surface-hover transition-colors opacity-0 group-hover:opacity-100 flex items-center space-x-1"
+                title="Edit character vision and senses"
+              >
+                <span>Edit Vision ✎</span>
+              </button>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Currency & Inventory / Notes */}
@@ -832,6 +861,14 @@ export const PlayerStatBlock: React.FC<PlayerStatBlockProps> = ({
           initialData={player}
           onClose={() => setIsEditorOpen(false)}
           onSave={(updatedData) => savePlayer(updatedData)}
+        />
+      )}
+
+      {/* Senses & Vision Modal */}
+      {isSensesModalOpen && (
+        <SensesEditorModal
+          player={player}
+          onClose={() => setIsSensesModalOpen(false)}
         />
       )}
     </div>

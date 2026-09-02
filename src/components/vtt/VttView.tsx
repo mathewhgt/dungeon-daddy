@@ -220,7 +220,14 @@ export const VttView: React.FC = () => {
 
   // Handle Spawning a Player Token
   const handleSpawnPlayer = (player: typeof db.players[0]) => {
-    const darkvisionRange = player.sensesConfig?.darkvision || (player.race.toLowerCase().includes('elf') || player.race.toLowerCase().includes('dwarf') ? 60 : 0);
+    const darkvisionRange = player.sensesConfig?.darkvision ?? (
+      player.race?.toLowerCase().includes('elf') || 
+      player.race?.toLowerCase().includes('dwarf') || 
+      player.race?.toLowerCase().includes('tiefling') || 
+      player.race?.toLowerCase().includes('gnome') || 
+      player.race?.toLowerCase().includes('half-orc') || 
+      player.race?.toLowerCase().includes('orc') ? 60 : 0
+    );
     const coords = getSpawnCoords(1);
 
     const newToken: MapToken = {
@@ -239,11 +246,11 @@ export const VttView: React.FC = () => {
       tempHp: player.tempHp,
       armorClass: player.armorClass,
       senses: {
-        normalSight: 60,
-        darkvision: darkvisionRange,
-        blindsight: 0,
-        truesight: 0,
-        tremorsense: 0,
+        normalSight: player.sensesConfig?.normalSight ?? 60,
+        darkvision: player.sensesConfig?.darkvision ?? darkvisionRange,
+        blindsight: player.sensesConfig?.blindsight ?? 0,
+        truesight: player.sensesConfig?.truesight ?? 0,
+        tremorsense: player.sensesConfig?.tremorsense ?? 0,
       },
     };
     addTokenToMap(currentMap.id, newToken);
@@ -984,7 +991,7 @@ export const VttView: React.FC = () => {
         )}
 
         {/* Central Map Canvas */}
-        <div className="flex-1 relative overflow-hidden">
+        <div className="flex-1 h-full min-h-0 relative overflow-hidden">
           <MapCanvas
             map={currentMap}
             activeTool={activeTool}
@@ -1055,7 +1062,7 @@ export const VttView: React.FC = () => {
 
           {/* Selected Token Inspector HUD */}
           {liveSelectedToken && (
-            <div className="absolute bottom-5 right-5 z-30 bg-[#121720]/90 backdrop-blur-md border border-surface-border p-4 rounded-2xl shadow-2xl space-y-3 w-64 animate-scaleUp">
+            <div className="absolute bottom-4 left-4 z-30 bg-[#121720]/90 backdrop-blur-md border border-surface-border p-4 rounded-2xl shadow-2xl space-y-3 w-64 animate-scaleUp">
               <div className="flex items-center justify-between border-b border-surface-border pb-2">
                 <div className="flex items-center space-x-2">
                   <TokenAvatar

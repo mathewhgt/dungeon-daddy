@@ -95,6 +95,8 @@ export interface MapDrawing {
   element?: string;
 }
 
+export type MapPinSize = 'sm' | 'md' | 'lg' | 'xl';
+
 export interface MapPin {
   id: string;
   x: number;
@@ -105,6 +107,7 @@ export interface MapPin {
   encounterId?: string; // Links to Encounter
   icon?: string;
   color?: string;
+  size?: MapPinSize;
 }
 
 export interface BattleMapEntity extends BaseEntity {

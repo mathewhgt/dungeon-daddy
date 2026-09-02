@@ -29,7 +29,10 @@ import {
   GitBranch,
   GitCommit,
   GitPullRequest,
-  ArrowDownToLine
+  ArrowDownToLine,
+  Type,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { formatBytes } from '../../services/storageService';
@@ -54,7 +57,21 @@ export const SettingsView: React.FC = () => {
     openCloudFolder,
     toggleAutoCloudSync,
     disconnectCloudSync,
+    fontSizeScale,
+    setFontSizeScale,
+    increaseFontSize,
+    decreaseFontSize,
+    resetFontSize,
   } = useApp();
+
+  const getFontSizeLabel = (scale: number) => {
+    if (scale <= 85) return 'Compact';
+    if (scale <= 95) return 'Small';
+    if (scale <= 105) return 'Default';
+    if (scale <= 120) return 'Large';
+    if (scale <= 135) return 'Extra Large';
+    return 'Maximum';
+  };
 
   const [isMigrating, setIsMigrating] = useState(false);
   const [folderConflictModal, setFolderConflictModal] = useState<{
@@ -380,6 +397,153 @@ export const SettingsView: React.FC = () => {
           <div className="p-4 rounded-xl bg-surface-100 border border-surface-border">
             <div className="text-[11px] font-bold uppercase text-slate-400">Encounters</div>
             <div className="text-2xl font-black font-mono text-red-400 mt-1">{db.encounters.length}</div>
+          </div>
+        </div>
+
+        {/* ============================================================ */}
+        {/* Accessibility & Font Size Options */}
+        {/* ============================================================ */}
+        <div className="p-6 rounded-xl bg-gradient-to-b from-amber-950/20 via-surface-100 to-surface-100 border border-amber-500/30 space-y-5 shadow-lg">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner">
+                <Type className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2.5">
+                  <h2 className="font-serif font-bold text-base text-slate-100">
+                    Accessibility & Font Size
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    {fontSizeScale}% • {getFontSizeLabel(fontSizeScale)}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Increase or decrease the font size across all notes, compendium entries, and UI elements for improved readability.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={resetFontSize}
+              disabled={fontSizeScale === 100}
+              className="px-3 py-1.5 rounded-lg bg-surface-50 hover:bg-surface-hover border border-surface-border text-slate-300 hover:text-white disabled:opacity-40 disabled:pointer-events-none text-xs font-semibold flex items-center space-x-1.5 transition-colors"
+              title="Reset to 100% default size"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+              <span>Reset Default (100%)</span>
+            </button>
+          </div>
+
+          {/* Stepper and Slider Controls */}
+          <div className="p-4 rounded-xl bg-surface-50/80 border border-surface-border space-y-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* Stepper Buttons */}
+              <div className="flex items-center space-x-2 w-full sm:w-auto">
+                <button
+                  onClick={decreaseFontSize}
+                  disabled={fontSizeScale <= 80}
+                  className="px-4 py-2 rounded-lg bg-surface-100 hover:bg-surface-hover active:scale-95 disabled:opacity-40 disabled:pointer-events-none border border-surface-border text-slate-200 font-bold text-xs flex items-center space-x-1.5 transition-all shadow-xs"
+                  title="Decrease font size (Ctrl+-)"
+                >
+                  <ZoomOut className="w-4 h-4 text-amber-400" />
+                  <span>Smaller (A-)</span>
+                </button>
+
+                <div className="px-4 py-2 rounded-lg bg-surface-100 border border-surface-border text-center font-mono font-bold text-amber-400 text-sm min-w-[70px]">
+                  {fontSizeScale}%
+                </div>
+
+                <button
+                  onClick={increaseFontSize}
+                  disabled={fontSizeScale >= 150}
+                  className="px-4 py-2 rounded-lg bg-surface-100 hover:bg-surface-hover active:scale-95 disabled:opacity-40 disabled:pointer-events-none border border-surface-border text-slate-200 font-bold text-xs flex items-center space-x-1.5 transition-all shadow-xs"
+                  title="Increase font size (Ctrl++)"
+                >
+                  <ZoomIn className="w-4 h-4 text-amber-400" />
+                  <span>Larger (A+)</span>
+                </button>
+              </div>
+
+              {/* Slider for smooth adjustment */}
+              <div className="flex items-center space-x-3 w-full sm:flex-1 max-w-xs">
+                <span className="text-[10px] font-mono text-slate-400">80%</span>
+                <input
+                  type="range"
+                  min="80"
+                  max="150"
+                  step="5"
+                  value={fontSizeScale}
+                  onChange={(e) => setFontSizeScale(Number(e.target.value))}
+                  className="flex-1 accent-amber-500 cursor-pointer h-1.5 bg-surface-200 rounded-lg appearance-none"
+                />
+                <span className="text-[10px] font-mono text-slate-400">150%</span>
+              </div>
+            </div>
+
+            {/* Quick Preset Chips */}
+            <div className="pt-2 border-t border-surface-border/50 flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-semibold text-slate-400 mr-1">Quick Presets:</span>
+              {[
+                { label: 'Compact', scale: 85 },
+                { label: 'Default', scale: 100 },
+                { label: 'Medium', scale: 115 },
+                { label: 'Large', scale: 130 },
+                { label: 'Extra Large', scale: 145 },
+              ].map((preset) => (
+                <button
+                  key={preset.scale}
+                  onClick={() => setFontSizeScale(preset.scale)}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all border ${
+                    fontSizeScale === preset.scale
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-xs'
+                      : 'bg-surface-100 text-slate-300 hover:bg-surface-hover border-surface-border'
+                  }`}
+                >
+                  {preset.label} ({preset.scale}%)
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Live Typography Preview Box */}
+          <div className="p-4 rounded-xl bg-surface-50/60 border border-surface-border space-y-2.5">
+            <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400 pb-1 border-b border-surface-border/50">
+              <span className="flex items-center space-x-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Live Typography Preview</span>
+              </span>
+              <span className="text-[10px] text-slate-500 font-mono">
+                Keyboard shortcuts: Ctrl + and Ctrl - (or Ctrl 0 to reset)
+              </span>
+            </div>
+
+            <div className="space-y-2 select-text">
+              <h3 className="font-heading font-bold text-amber-400 text-lg">
+                Chapter 4: Stygian Dock
+              </h3>
+              
+              <div className="dd-read-aloud p-3 rounded-lg bg-[#1e1913] border-l-4 border-amber-500/80 shadow-xs text-amber-100/95 italic space-y-1">
+                <div className="text-[10px] uppercase font-bold text-amber-400 not-italic font-scalyCaps tracking-wider">
+                  📜 Read Aloud to Players
+                </div>
+                <div className="dd-block-content text-xs leading-relaxed font-book">
+                  The black waters of the river lap against the petrified wood pilings of the dock. Mist drifts silently across the water, carrying the faint sulfurous stench of the lower planes.
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold font-scaly bg-amber-950/80 border border-amber-700 text-amber-300">
+                  Perception DC 15
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold font-scaly bg-indigo-950/80 border border-indigo-700 text-indigo-300">
+                  ✨ Dimension Door
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold font-scaly bg-red-950/80 border border-red-700 text-red-300">
+                  🐉 Adult Red Dragon
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 

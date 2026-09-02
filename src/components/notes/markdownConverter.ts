@@ -2,6 +2,11 @@
  * Bidirectional conversion between Dungeon Daddy Markdown and ContentEditable HTML
  */
 
+export function createEntityBadgeHtml(type: string, label: string, id: string): string {
+  const icon = type === 'map' ? '🗺️' : '🔮';
+  return `<span class="dd-entity-badge" data-type="${type}" data-id="${id}" contenteditable="false">${icon} ${label}</span>&nbsp;`;
+}
+
 export function markdownToHtml(markdown: string): string {
   if (!markdown) return '<p><br></p>';
 
@@ -37,20 +42,39 @@ export function markdownToHtml(markdown: string): string {
 
   const formatInline = (text: string) => {
     let res = escapeHtml(text);
-    // Entity tags: [[monster:name:id]]
-    res = res.replace(/\[\[(monster|spell|item|npc|rule|note):([^:\]]+)(?::([^\]]+))?\]\]/g, (_, type, label, id) => {
+    // Entity tags: [[monster:name:id]] or [[map:name:id]]
+    res = res.replace(/\[\[(monster|spell|item|npc|rule|note|map):([^:\]]+)(?::([^\]]+))?\]\]/g, (_, type, label, id) => {
       const entityId = id || label;
-      return `<span class="dd-entity-badge" data-type="${type}" data-id="${entityId}" contenteditable="false">🔮 ${label}</span>`;
+      const icon = type === 'map' ? '🗺️' : '🔮';
+      return `<span class="dd-entity-badge" data-type="${type}" data-id="${entityId}" contenteditable="false">${icon} ${label}</span>`;
     });
-    // Bold: **text**
+    // Entity tags: @[name](type:id)
+    res = res.replace(/@\[([^\]]+)\]\((monster|spell|item|npc|rule|note|map):([^)]+)\)/g, (_, label, type, id) => {
+      const icon = type === 'map' ? '🗺️' : '🔮';
+      return `<span class="dd-entity-badge" data-type="${type}" data-id="${id}" contenteditable="false">${icon} ${label}</span>`;
+    });
+    // Bold: **text**, <strong>, <b>
     res = res.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    // Italic: *text* or _text_
+    res = res.replace(/&lt;strong&gt;(.*?)&lt;\/strong&gt;/gi, '<strong>$1</strong>');
+    res = res.replace(/&lt;b&gt;(.*?)&lt;\/b&gt;/gi, '<strong>$1</strong>');
+    // Italic: *text*, _text_, <em>, <i>
     res = res.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
     res = res.replace(/(?<!_)_(?!_)(.*?)(?<!_)_(?!_)/g, '<em>$1</em>');
+    res = res.replace(/&lt;em&gt;(.*?)&lt;\/em&gt;/gi, '<em>$1</em>');
+    res = res.replace(/&lt;i&gt;(.*?)&lt;\/i&gt;/gi, '<em>$1</em>');
     // Inline code: `text`
     res = res.replace(/`(.*?)`/g, '<code>$1</code>');
-    // Strikethrough: ~~text~~
-    res = res.replace(/~~(.*?)~~/g, '<del>$1</del>');
+    // Strikethrough: ~~text~~, <del>, <s>, <strike>
+    res = res.replace(/~~(.*?)~~/g, '<s>$1</s>');
+    res = res.replace(/&lt;del&gt;(.*?)&lt;\/del&gt;/gi, '<s>$1</s>');
+    res = res.replace(/&lt;s&gt;(.*?)&lt;\/s&gt;/gi, '<s>$1</s>');
+    res = res.replace(/&lt;strike&gt;(.*?)&lt;\/strike&gt;/gi, '<s>$1</s>');
+    res = res.replace(/<del>(.*?)<\/del>/gi, '<s>$1</s>');
+    res = res.replace(/<strike>(.*?)<\/strike>/gi, '<s>$1</s>');
+    // Underline: <u>text</u>, <ins>text</ins>
+    res = res.replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/gi, '<u>$1</u>');
+    res = res.replace(/&lt;ins&gt;(.*?)&lt;\/ins&gt;/gi, '<u>$1</u>');
+    res = res.replace(/<u>(.*?)<\/u>/gi, '<u>$1</u>');
     return res || '<br>';
   };
 
@@ -136,7 +160,7 @@ export function markdownToHtml(markdown: string): string {
       inReadAloud = false;
       const innerHtml = readAloudBuffer.map((l) => `<p class="my-1">${formatInline(l)}</p>`).join('');
       htmlParts.push(
-        `<div class="dd-read-aloud my-4 p-4 rounded-xl bg-[#1e1913] border-l-4 border-amber-500/80 shadow-md font-serif text-amber-100/90 italic space-y-1.5" data-dd-block="read-aloud"><div class="text-[11px] uppercase tracking-wider text-amber-400 font-bold not-italic flex items-center gap-1.5 pb-1 border-b border-amber-500/20" contenteditable="false">📜 Read Aloud to Players</div><div class="dd-block-content text-xs sm:text-sm leading-relaxed">${innerHtml || '<p><br></p>'}</div></div>`
+        `<div class="dd-read-aloud my-4 p-4 rounded-xl bg-[#1e1913] border-l-4 border-amber-500/80 shadow-md font-book text-amber-100/90 italic space-y-1.5" data-dd-block="read-aloud"><div class="text-[11px] uppercase tracking-wider text-amber-400 font-sans font-bold not-italic flex items-center gap-1.5 pb-1 border-b border-amber-500/20" contenteditable="false">📜 Read Aloud to Players</div><div class="dd-block-content text-xs sm:text-sm leading-relaxed font-book">${innerHtml || '<p><br></p>'}</div></div>`
       );
       return;
     }
@@ -197,9 +221,9 @@ export function markdownToHtml(markdown: string): string {
     }
     if (inCheck && trimmed === ':::') {
       inCheck = false;
-      const innerHtml = checkBuffer.map((l) => `<p class="my-1">${formatInline(l)}</p>`).join('');
+      const innerHtml = checkBuffer.map((l) => `<p class="dd-check-line my-1 p-2 rounded-xl transition-all leading-relaxed">${formatInline(l)}</p>`).join('');
       htmlParts.push(
-        `<div class="dd-check my-3.5 p-3.5 rounded-xl bg-surface-100/90 border border-amber-500/40 shadow-lg text-slate-200 text-xs space-y-2" data-dd-block="check" data-skill="${checkMeta.skill}" data-dc="${checkMeta.dc}"><div class="flex items-center justify-between pb-1.5 border-b border-surface-border font-serif" contenteditable="false"><div class="flex items-center space-x-2"><span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold text-xs border border-amber-500/30">DC ${checkMeta.dc}</span><span class="font-bold text-amber-400 text-xs">${checkMeta.skill}</span></div><span class="text-[10px] text-slate-400">🎲 DC Ability Check</span></div><div class="dd-block-content leading-relaxed">${innerHtml || '<p><br></p>'}</div></div>`
+        `<div class="dd-check my-3.5 p-3.5 rounded-xl bg-[#121824]/95 border border-amber-500/50 shadow-xl text-slate-200 text-xs space-y-2 select-text" data-dd-block="check" data-skill="${checkMeta.skill}" data-dc="${checkMeta.dc}"><div class="flex items-center justify-between pb-2 border-b border-surface-border font-serif flex-wrap gap-2" contenteditable="false"><div class="flex items-center space-x-2"><span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold text-xs border border-amber-500/40">DC ${checkMeta.dc}</span><span class="font-bold text-amber-400 text-xs">${checkMeta.skill}</span></div><div class="flex items-center space-x-2"><span class="dd-check-result hidden px-2 py-0.5 rounded-lg text-xs font-mono font-bold border"></span><button type="button" class="dd-check-roll-btn px-2.5 py-1 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs flex items-center space-x-1 shadow-md transition-all active:scale-95 cursor-pointer"><span>🎲 Roll d20</span></button></div></div><div class="dd-block-content leading-relaxed space-y-1">${innerHtml || '<p class="dd-check-line my-1 p-2 rounded-xl"><br></p>'}</div></div>`
       );
       return;
     }
@@ -389,25 +413,48 @@ export function htmlToMarkdown(html: string): string {
       return `\n> [!TIP]\n> ${content}\n`;
     }
 
-    // Entity Badge: [[type:label:id]]
+    // Entity Badge: @[label](type:id)
     if (el.classList.contains('dd-entity-badge')) {
       const type = el.getAttribute('data-type') || 'note';
       const id = el.getAttribute('data-id') || '';
-      const label = el.textContent?.replace(/^🔮\s*/, '') || id;
-      return `[[${type}:${label}${id && id !== label ? `:${id}` : ''}]]`;
+      const label = el.textContent?.replace(/^[🔮🗺️]\s*/, '').trim() || id;
+      return `@[${label}](${type}:${id})`;
     }
 
     // Standard HTML tags
     const tag = el.tagName.toLowerCase();
     const children = Array.from(el.childNodes).map(serializeNode).join('');
 
+    // Check for inline style formatting on span, font, or generic containers
+    if (tag === 'span' || tag === 'font') {
+      let styledChildren = children;
+      const styleAttr = el.getAttribute('style') || '';
+      const textDecoration = el.style?.textDecoration || '';
+      const fontWeight = el.style?.fontWeight || '';
+      const fontStyle = el.style?.fontStyle || '';
+
+      if (textDecoration.includes('underline') || styleAttr.includes('underline')) {
+        styledChildren = `<u>${styledChildren}</u>`;
+      }
+      if (textDecoration.includes('line-through') || styleAttr.includes('line-through')) {
+        styledChildren = `~~${styledChildren}~~`;
+      }
+      if (fontWeight === 'bold' || parseInt(fontWeight, 10) >= 600 || styleAttr.includes('bold')) {
+        styledChildren = `**${styledChildren}**`;
+      }
+      if (fontStyle === 'italic' || styleAttr.includes('italic')) {
+        styledChildren = `*${styledChildren}*`;
+      }
+      return styledChildren;
+    }
+
     switch (tag) {
       case 'h1':
-        return `\n# ${children.trim()}\n\n`;
+        return `\n# ${children.replace(/\n+/g, ' ').trim()}\n\n`;
       case 'h2':
-        return `\n## ${children.trim()}\n\n`;
+        return `\n## ${children.replace(/\n+/g, ' ').trim()}\n\n`;
       case 'h3':
-        return `\n### ${children.trim()}\n\n`;
+        return `\n### ${children.replace(/\n+/g, ' ').trim()}\n\n`;
       case 'strong':
       case 'b':
         return `**${children}**`;
@@ -415,6 +462,7 @@ export function htmlToMarkdown(html: string): string {
       case 'i':
         return `*${children}*`;
       case 'u':
+      case 'ins':
         return `<u>${children}</u>`;
       case 'del':
       case 's':

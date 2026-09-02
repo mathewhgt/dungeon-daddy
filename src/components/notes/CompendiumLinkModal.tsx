@@ -10,7 +10,7 @@ interface CompendiumLinkModalProps {
 export const CompendiumLinkModal: React.FC<CompendiumLinkModalProps> = ({ onClose, onSelect }) => {
   const { db, activeCampaignId } = useApp();
   const [query, setQuery] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'monster' | 'spell' | 'item' | 'note'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'monster' | 'spell' | 'item' | 'note' | 'map'>('all');
 
   const campaign = db.campaigns.find((c) => c.id === activeCampaignId) || db.campaigns[0];
   const allNotes = (campaign?.notes || []).filter((n) => !n.isFolder);
@@ -20,6 +20,12 @@ export const CompendiumLinkModal: React.FC<CompendiumLinkModalProps> = ({ onClos
     ...db.spells.map((s) => ({ id: s.id, name: s.name, type: 'spell' as const, sub: `${s.level === 0 ? 'Cantrip' : `Lvl ${s.level}`} ${s.school}` })),
     ...db.items.map((i) => ({ id: i.id, name: i.name, type: 'item' as const, sub: `${i.rarity} ${i.itemType}` })),
     ...allNotes.map((n) => ({ id: n.id, name: n.name, type: 'note' as const, sub: `Note: ${n.category}` })),
+    ...(db.maps || []).map((m) => ({
+      id: m.id,
+      name: m.name,
+      type: 'map' as const,
+      sub: `Map • ${m.width || 2000}×${m.height || 2000}px • ${m.grid?.enabled ? `${m.grid.cellSize}px Grid` : 'Gridless'}`,
+    })),
   ];
 
   const filtered = items.filter((item) => {
@@ -29,7 +35,7 @@ export const CompendiumLinkModal: React.FC<CompendiumLinkModalProps> = ({ onClos
   });
 
   const handlePick = (item: typeof items[0]) => {
-    // Generates tag like @[Goblin](monster:srd-goblin)
+    // Generates tag like @[Cragmaw Hideout](map:map-id) or @[Goblin](monster:srd-goblin)
     const tag = `@[${item.name}](${item.type}:${item.id})`;
     onSelect(tag);
     onClose();
@@ -41,7 +47,7 @@ export const CompendiumLinkModal: React.FC<CompendiumLinkModalProps> = ({ onClos
         {/* Header */}
         <div className="p-4 border-b border-surface-border flex items-center justify-between bg-surface-100/50">
           <div>
-            <h3 className="font-serif text-base font-bold text-slate-100">Tag Compendium or Note Entry</h3>
+            <h3 className="font-serif text-base font-bold text-slate-100">Tag Compendium, Note, or Battlemap</h3>
             <p className="text-[11px] text-slate-400">Click any entry to insert a live interactive link into your note.</p>
           </div>
           <button onClick={onClose} className="p-1 rounded text-slate-400 hover:text-white">
@@ -57,19 +63,20 @@ export const CompendiumLinkModal: React.FC<CompendiumLinkModalProps> = ({ onClos
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search monsters, spells, items, notes..."
+              placeholder="Search monsters, spells, items, notes, maps..."
               className="w-full bg-surface-50 border border-surface-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-100 focus:border-amber-500"
               autoFocus
             />
           </div>
 
-          <div className="flex space-x-1">
+          <div className="flex space-x-1 flex-wrap gap-y-1">
             {[
               { id: 'all', label: 'All' },
               { id: 'monster', label: 'Monsters' },
               { id: 'spell', label: 'Spells' },
               { id: 'item', label: 'Items' },
               { id: 'note', label: 'Notes' },
+              { id: 'map', label: 'Maps' },
             ].map((t) => (
               <button
                 key={t.id}
@@ -91,23 +98,39 @@ export const CompendiumLinkModal: React.FC<CompendiumLinkModalProps> = ({ onClos
           {filtered.length === 0 ? (
             <div className="text-center py-8 text-xs text-slate-500">No matching entries found.</div>
           ) : (
-            filtered.map((item) => (
-              <button
-                key={`${item.type}-${item.id}`}
-                onClick={() => handlePick(item)}
-                className="w-full p-2 rounded-lg hover:bg-surface-hover flex items-center justify-between text-left transition-colors group"
-              >
-                <div>
-                  <div className="text-xs font-bold text-slate-200 group-hover:text-amber-400 font-serif">
-                    {item.name}
+            filtered.map((item) => {
+              let badgeStyle = 'bg-surface-50 border-surface-border text-slate-400';
+              let icon = '🔮';
+              if (item.type === 'map') {
+                badgeStyle = 'bg-emerald-950/60 border-emerald-700/60 text-emerald-300';
+                icon = '🗺️';
+              } else if (item.type === 'spell') {
+                badgeStyle = 'bg-indigo-950/60 border-indigo-700/60 text-indigo-300';
+              } else if (item.type === 'item') {
+                badgeStyle = 'bg-teal-950/60 border-teal-700/60 text-teal-300';
+              } else if (item.type === 'note') {
+                badgeStyle = 'bg-purple-950/60 border-purple-700/60 text-purple-300';
+              }
+
+              return (
+                <button
+                  key={`${item.type}-${item.id}`}
+                  onClick={() => handlePick(item)}
+                  className="w-full p-2 rounded-lg hover:bg-surface-hover flex items-center justify-between text-left transition-colors group"
+                >
+                  <div>
+                    <div className="text-xs font-bold text-slate-200 group-hover:text-amber-400 font-serif flex items-center space-x-1.5">
+                      <span>{icon}</span>
+                      <span>{item.name}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400">{item.sub}</div>
                   </div>
-                  <div className="text-[10px] text-slate-400">{item.sub}</div>
-                </div>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-surface-50 border border-surface-border text-slate-400 capitalize">
-                  {item.type}
-                </span>
-              </button>
-            ))
+                  <span className={`px-2 py-0.5 rounded text-[10px] border capitalize ${badgeStyle}`}>
+                    {item.type}
+                  </span>
+                </button>
+              );
+            })
           )}
         </div>
       </div>

@@ -256,12 +256,20 @@ export const SlashCommandMenu: React.FC<SlashCommandMenuProps> = ({
 
   if (filtered.length === 0) return null;
 
+  const menuEstimatedHeight = 310;
+  const fitsBelow = position.top + menuEstimatedHeight <= window.innerHeight - 15;
+  const topPos = fitsBelow
+    ? Math.max(10, position.top)
+    : Math.max(10, position.top - menuEstimatedHeight - 20);
+  const leftPos = Math.max(10, Math.min(position.left, window.innerWidth - 300));
+
   return (
     <div
       ref={menuRef}
+      onMouseDown={(e) => e.preventDefault()}
       style={{
-        top: `${Math.max(10, Math.min(position.top, window.innerHeight - 340))}px`,
-        left: `${Math.max(10, Math.min(position.left, window.innerWidth - 320))}px`,
+        top: `${topPos}px`,
+        left: `${leftPos}px`,
       }}
       className="fixed z-[99999] w-72 bg-[#121720]/95 backdrop-blur-md border border-surface-border rounded-xl shadow-2xl overflow-hidden animate-scaleUp text-xs select-none"
     >

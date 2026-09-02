@@ -159,16 +159,31 @@ export function computeTokenLos(
 }
 
 /**
- * Calculates sight radius in pixels from token senses config and map scale
+ * Calculates sight radius in pixels from token senses config, map scale, and ambient lighting
  */
-export function getTokenSightRadius(token: MapToken, pixelsPerFoot: number): number {
-  const normalSight = token.senses?.normalSight || 60;
+export function getTokenSightRadius(
+  token: MapToken, 
+  pixelsPerFoot: number, 
+  ambientLight: 'bright' | 'dim' | 'dark' = 'bright'
+): number {
   const darkvision = token.senses?.darkvision || 0;
   const blindsight = token.senses?.blindsight || 0;
   const truesight = token.senses?.truesight || 0;
+  const tremorsense = token.senses?.tremorsense || 0;
+  const specialVision = Math.max(darkvision, blindsight, truesight, tremorsense);
 
-  const maxFeet = Math.max(normalSight, darkvision, blindsight, truesight, 30);
-  return maxFeet * pixelsPerFoot;
+  if (ambientLight === 'dark') {
+    // In darkness, creatures without special senses cannot see
+    return specialVision * pixelsPerFoot;
+  }
+
+  const normalSight = token.senses?.normalSight || 60;
+  if (ambientLight === 'bright') {
+    return Math.max(normalSight, specialVision) * pixelsPerFoot;
+  }
+
+  // Dim light
+  return Math.max(normalSight, specialVision) * pixelsPerFoot;
 }
 
 /**
@@ -177,20 +192,24 @@ export function getTokenSightRadius(token: MapToken, pixelsPerFoot: number): num
 export function computeCombinedLos(
   tokens: MapToken[],
   walls: MapWallSegment[],
-  pixelsPerFoot: number
+  pixelsPerFoot: number,
+  ambientLight: 'bright' | 'dim' | 'dark' = 'bright'
 ): LosPolygon[] {
-  return tokens.map((token) => {
-    const sightRadiusPx = getTokenSightRadius(token, pixelsPerFoot);
-    const origin = { x: token.x, y: token.y };
-    const points = computeTokenLos(origin, sightRadiusPx, walls);
+  return tokens
+    .map((token) => {
+      const sightRadiusPx = getTokenSightRadius(token, pixelsPerFoot, ambientLight);
+      if (sightRadiusPx <= 0) return null;
+      const origin = { x: token.x, y: token.y };
+      const points = computeTokenLos(origin, sightRadiusPx, walls);
 
-    return {
-      tokenId: token.id,
-      tokenName: token.name,
-      origin,
-      sightRadius: sightRadiusPx,
-      points,
-      visionType: token.senses?.darkvision ? 'darkvision' : 'normal',
-    };
-  });
+      return {
+        tokenId: token.id,
+        tokenName: token.name,
+        origin,
+        sightRadius: sightRadiusPx,
+        points,
+        visionType: (token.senses?.darkvision || token.senses?.truesight) ? 'darkvision' : 'normal',
+      };
+    })
+    .filter(Boolean) as LosPolygon[];
 }

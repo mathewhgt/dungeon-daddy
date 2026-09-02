@@ -10,6 +10,21 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var s = localStorage.getItem('dd_font_size_scale');
+          if (s) {
+            var n = Number(s);
+            if (!isNaN(n) && n >= 75 && n <= 160) {
+              document.documentElement.style.fontSize = (n / 100 * 16) + 'px';
+              document.documentElement.style.setProperty('--app-font-scale', (n / 100).toString());
+              document.documentElement.setAttribute('data-font-size', n.toString());
+            }
+          }
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body class="bg-[#090d12] text-slate-100 antialiased select-none overflow-hidden h-screen w-screen">
     <div id="root" class="h-full w-full"></div>

@@ -46,7 +46,7 @@ export const CustomChapterModal: React.FC<CustomChapterModalProps> = ({
   });
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === '\\' || e.key === '/') {
+    if (e.key === '\\') {
       const textarea = e.currentTarget;
       const rect = textarea.getBoundingClientRect();
       const cursorPos = textarea.selectionStart;
@@ -59,7 +59,7 @@ export const CustomChapterModal: React.FC<CustomChapterModalProps> = ({
         setSlashMenu({
           isOpen: true,
           query: '',
-          triggerChar: e.key as '/' | '\\',
+          triggerChar: '\\',
           triggerPos: cursorPos,
           position: { top, left },
         });
@@ -73,12 +73,10 @@ export const CustomChapterModal: React.FC<CustomChapterModalProps> = ({
 
     const cursorPos = e.target.selectionStart;
     const textBeforeCursor = val.substring(0, cursorPos);
-    const lastSlashIdx = textBeforeCursor.lastIndexOf('/');
-    const lastBackslashIdx = textBeforeCursor.lastIndexOf('\\');
-    const triggerIdx = Math.max(lastSlashIdx, lastBackslashIdx);
+    const triggerIdx = textBeforeCursor.lastIndexOf('\\');
 
     if (triggerIdx !== -1) {
-      const char = textBeforeCursor[triggerIdx] as '/' | '\\';
+      const char = '\\';
       const textAfterTrigger = textBeforeCursor.substring(triggerIdx + 1);
 
       if (!textAfterTrigger.includes('\n') && textAfterTrigger.length <= 20) {

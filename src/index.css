@@ -2,6 +2,209 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   Official D&D 5e Typography (@font-face declarations)
+   ========================================================================== */
+
+/* 1. Headings: Mrs Eaves / Mr Eaves Small Caps */
+@font-face {
+  font-family: 'MrsEavesAllSmallCaps';
+  src:
+    local('MrsEavesAllSmallCaps'),
+    local('Mrs Eaves All Small Caps'),
+    local('Mrs Eaves Small Caps'),
+    local('Mr Eaves Small Caps'),
+    url('/fonts/Mr Eaves Small Caps.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Mr%20Eaves/Mr%20Eaves%20Small%20Caps.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Mr Eaves Small Caps';
+  src:
+    local('MrsEavesAllSmallCaps'),
+    local('Mrs Eaves All Small Caps'),
+    local('Mrs Eaves Small Caps'),
+    local('Mr Eaves Small Caps'),
+    url('/fonts/Mr Eaves Small Caps.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Mr%20Eaves/Mr%20Eaves%20Small%20Caps.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 2. Body & Read Aloud: Bookmania / Bookinsanity */
+@font-face {
+  font-family: 'Bookinsanity';
+  src:
+    local('Bookmania Regular'),
+    local('Bookmania'),
+    local('Bookinsanity Remake'),
+    local('Bookinsanity'),
+    url('/fonts/Bookinsanity.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Bookinsanity/Bookinsanity.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bookinsanity';
+  src:
+    local('Bookmania Bold'),
+    local('Bookinsanity Bold'),
+    url('/fonts/Bookinsanity Bold.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Bookinsanity/Bookinsanity%20Bold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bookinsanity';
+  src:
+    local('Bookmania Italic'),
+    local('Bookinsanity Italic'),
+    url('/fonts/Bookinsanity Italic.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Bookinsanity/Bookinsanity%20Italic.otf') format('opentype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bookinsanity';
+  src:
+    local('Bookmania Bold Italic'),
+    local('Bookinsanity Bold Italic'),
+    url('/fonts/Bookinsanity Bold Italic.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Bookinsanity/Bookinsanity%20Bold%20Italic.otf') format('opentype');
+  font-weight: bold;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bookmania';
+  src:
+    local('Bookmania Regular'),
+    local('Bookmania'),
+    local('Bookinsanity Remake'),
+    local('Bookinsanity'),
+    url('/fonts/Bookinsanity.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Bookinsanity/Bookinsanity.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bookmania';
+  src:
+    local('Bookmania Bold'),
+    local('Bookinsanity Bold'),
+    url('/fonts/Bookinsanity Bold.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Bookinsanity/Bookinsanity%20Bold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bookmania';
+  src:
+    local('Bookmania Italic'),
+    local('Bookinsanity Italic'),
+    url('/fonts/Bookinsanity Italic.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Bookinsanity/Bookinsanity%20Italic.otf') format('opentype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bookmania';
+  src:
+    local('Bookmania Bold Italic'),
+    local('Bookinsanity Bold Italic'),
+    url('/fonts/Bookinsanity Bold Italic.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Bookinsanity/Bookinsanity%20Bold%20Italic.otf') format('opentype');
+  font-weight: bold;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* 3. Sidebar labels & inline elements: FF Scala Sans / ScalaSansOffc Bold / Scaly Sans */
+@font-face {
+  font-family: 'Scaly Sans';
+  src:
+    local('FF Scala Sans'),
+    local('ScalaSansOffc'),
+    local('Scala Sans'),
+    local('Scaly Sans'),
+    url('/fonts/Scaly Sans.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Scaly%20Sans/Scaly%20Sans.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Scaly Sans';
+  src:
+    local('FF Scala Sans Bold'),
+    local('ScalaSansOffc Bold'),
+    local('Scala Sans Bold'),
+    local('Scaly Sans Bold'),
+    url('/fonts/Scaly Sans Bold.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Scaly%20Sans/Scaly%20Sans%20Bold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Scaly Sans';
+  src:
+    local('FF Scala Sans Italic'),
+    local('ScalaSansOffc Italic'),
+    local('Scala Sans Italic'),
+    local('Scaly Sans Italic'),
+    url('/fonts/Scaly Sans Italic.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Scaly%20Sans/Scaly%20Sans%20Italic.otf') format('opentype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Scaly Sans';
+  src:
+    local('FF Scala Sans Bold Italic'),
+    local('ScalaSansOffc Bold Italic'),
+    local('Scala Sans Bold Italic'),
+    local('Scaly Sans Bold Italic'),
+    url('/fonts/Scaly Sans Bold Italic.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Scaly%20Sans/Scaly%20Sans%20Bold%20Italic.otf') format('opentype');
+  font-weight: bold;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Scaly Sans Caps';
+  src:
+    local('Scala Sans Caps'),
+    local('Scaly Sans Caps'),
+    url('/fonts/Scaly Sans Caps.otf') format('opentype'),
+    url('https://cdn.jsdelivr.net/gh/jonathonf/solbera-dnd-fonts/Scaly%20Sans%20Caps/Scaly%20Sans%20Caps.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   body {
     @apply bg-[#090d12] text-slate-100 font-sans select-none overflow-hidden;
@@ -113,5 +316,166 @@
     page-break-inside: avoid;
     break-inside: avoid;
   }
+}
+
+/* ==========================================================================
+   D&D 5e Official Typography Rules
+   ========================================================================== */
+
+/* Headings: Mrs Eaves All Small Caps */
+.font-heading,
+.font-serif {
+  font-family: 'MrsEavesAllSmallCaps', 'Mrs Eaves Small Caps', 'Mr Eaves Small Caps', 'Cinzel', 'Georgia', serif;
+  letter-spacing: 0.035em;
+}
+
+/* Body & Read Aloud: Bookmania / Bookinsanity */
+.font-book {
+  font-family: 'Bookmania', 'Bookinsanity', 'Georgia', 'Cambria', 'Times New Roman', serif;
+}
+
+/* Sidebar Labels, Tables, and Inline Elements: FF Scala Sans / Scaly Sans */
+.font-scaly {
+  font-family: 'FF Scala Sans', 'ScalaSansOffc Bold', 'ScalaSansOffc', 'Scaly Sans', sans-serif;
+}
+
+.font-scaly-caps {
+  font-family: 'Scaly Sans Caps', 'Scala Sans Caps', 'FF Scala Sans', 'Scaly Sans', sans-serif;
+}
+
+/* Read Aloud Box */
+.dd-read-aloud {
+  font-family: 'Bookmania', 'Bookinsanity', 'Georgia', 'Cambria', 'Times New Roman', serif !important;
+  text-transform: none !important;
+}
+
+.dd-read-aloud .dd-block-content {
+  font-family: 'Bookmania', 'Bookinsanity', 'Georgia', 'Cambria', 'Times New Roman', serif !important;
+  text-transform: none !important;
+}
+
+.dd-read-aloud .dd-block-content * {
+  text-transform: none !important;
+}
+
+/* Read Aloud Header Banner */
+.dd-read-aloud > div:first-child {
+  font-family: 'Scaly Sans Caps', 'FF Scala Sans', 'Scaly Sans', sans-serif !important;
+  letter-spacing: 0.05em;
+}
+
+/* DM Info & Secrets Header Banners */
+.dd-dm-info > div:first-child,
+.dd-secrets > div:first-child {
+  font-family: 'Scaly Sans Caps', 'FF Scala Sans', 'Scaly Sans', sans-serif !important;
+  letter-spacing: 0.04em;
+}
+
+/* Adventure Notes Live Surface */
+.dd-live-note-content {
+  font-family: 'Bookmania', 'Bookinsanity', 'Georgia', 'Cambria', 'Times New Roman', serif;
+}
+
+.dd-live-note-content h1 {
+  font-family: 'MrsEavesAllSmallCaps', 'Mrs Eaves Small Caps', 'Mr Eaves Small Caps', 'Cinzel', 'Georgia', serif !important;
+  font-size: 1.85rem !important;
+  line-height: 2.2rem !important;
+  font-weight: 700 !important;
+  color: #f59e0b !important; /* amber-500 */
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.5rem !important;
+  letter-spacing: 0.04em !important;
+}
+
+.dd-live-note-content h2 {
+  font-family: 'MrsEavesAllSmallCaps', 'Mrs Eaves Small Caps', 'Mr Eaves Small Caps', 'Cinzel', 'Georgia', serif !important;
+  font-size: 1.45rem !important;
+  line-height: 1.85rem !important;
+  font-weight: 700 !important;
+  color: #f1f5f9 !important; /* slate-100 */
+  margin-top: 1rem !important;
+  margin-bottom: 0.375rem !important;
+  letter-spacing: 0.035em !important;
+}
+
+.dd-live-note-content h3 {
+  font-family: 'MrsEavesAllSmallCaps', 'Mrs Eaves Small Caps', 'Mr Eaves Small Caps', 'Cinzel', 'Georgia', serif !important;
+  font-size: 1.2rem !important;
+  line-height: 1.6rem !important;
+  font-weight: 700 !important;
+  color: #fcd34d !important; /* amber-300 */
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.25rem !important;
+  letter-spacing: 0.03em !important;
+}
+
+.dd-live-note-content p {
+  margin-top: 0.375rem;
+  margin-bottom: 0.375rem;
+}
+
+.dd-live-note-content s,
+.dd-live-note-content strike,
+.dd-live-note-content del {
+  text-decoration: line-through !important;
+  color: #94a3b8 !important;
+}
+
+.dd-live-note-content u,
+.dd-live-note-content ins {
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+}
+
+/* Compendium Entity Inline Badges */
+.dd-entity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  margin: 0 0.2rem;
+  border-radius: 9999px;
+  font-family: 'FF Scala Sans', 'ScalaSansOffc Bold', 'Scaly Sans', sans-serif !important;
+  font-weight: 700;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  background-color: rgba(120, 53, 15, 0.45);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #fcd34d;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+  vertical-align: middle;
+}
+
+.dd-entity-badge:hover {
+  background-color: rgba(180, 83, 9, 0.65);
+  border-color: rgba(245, 158, 11, 0.9);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.dd-entity-badge[data-type="map"] {
+  background-color: rgba(6, 78, 59, 0.45);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #6ee7b7;
+}
+
+.dd-entity-badge[data-type="map"]:hover {
+  background-color: rgba(4, 120, 87, 0.7);
+  border-color: rgba(16, 185, 129, 0.9);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.4);
+}
+
+/* Tables in Notes */
+.dd-table-container table {
+  font-family: 'FF Scala Sans', 'Scaly Sans', sans-serif;
+}
+
+.dd-table-container table thead th {
+  font-family: 'Scaly Sans Caps', 'FF Scala Sans', 'Scaly Sans', sans-serif;
+  letter-spacing: 0.04em;
 }
 

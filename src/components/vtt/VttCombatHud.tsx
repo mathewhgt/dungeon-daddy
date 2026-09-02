@@ -51,7 +51,7 @@ export const VttCombatHud: React.FC<VttCombatHudProps> = ({
   const isMonsterDead = !currentCombatant.isPlayer && (currentCombatant.currentHp <= 0 || currentCombatant.defeated);
 
   return (
-    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-[#121720]/95 backdrop-blur-md border border-surface-border rounded-2xl shadow-2xl p-2.5 flex items-center space-x-3 select-none animate-slideDown max-w-2xl">
+    <div className="absolute top-0 left-1/2 -translate-x-1/2 z-40 bg-[#121720]/95 backdrop-blur-md border-b border-x border-t-0 border-surface-border rounded-b-2xl shadow-2xl px-3 py-1.5 flex items-center space-x-3 select-none animate-slideDown max-w-[calc(100%-8rem)]">
       {/* Round Badge */}
       <div className="px-3 py-1.5 rounded-xl bg-red-950/80 border border-red-800 text-center shrink-0">
         <div className="text-[9px] uppercase font-bold text-red-300">Round</div>
@@ -82,9 +82,9 @@ export const VttCombatHud: React.FC<VttCombatHudProps> = ({
           size="md"
         />
 
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center space-x-2">
-            <span className="font-serif font-bold text-sm text-slate-100 group-hover:text-amber-400 transition-colors">
+            <span className="font-serif font-bold text-sm text-slate-100 group-hover:text-amber-400 transition-colors truncate max-w-[140px] sm:max-w-[200px]">
               {combatantDisplayName}
             </span>
             {monsterBadge && (

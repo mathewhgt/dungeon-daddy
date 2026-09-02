@@ -70,4 +70,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return () => ipcRenderer.removeListener('updater:status', sub);
     },
   },
+
+  // Pop-out Adventure Notes Window APIs
+  notes: {
+    openWindow: (options) => ipcRenderer.send('notes:openWindow', options),
+    setAlwaysOnTop: (flag) => ipcRenderer.send('notes:setAlwaysOnTop', flag),
+    isAlwaysOnTop: () => ipcRenderer.invoke('notes:isAlwaysOnTop'),
+    closeWindow: () => ipcRenderer.send('notes:closeWindow'),
+  },
 });

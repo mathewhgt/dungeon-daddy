@@ -120,6 +120,9 @@ export interface CampaignNote extends BaseEntity {
   imageUrl?: string; // High-res image/artwork/map URL or base64
   caption?: string; // Image caption or subtitle
   aspectRatio?: string;
+  coverImageUrl?: string; // Optional top cover image banner URL or base64
+  coverImagePositionY?: number; // 0 to 100 vertical alignment percentage
+  coverImageHeight?: number; // Banner height in px (default ~280px)
 }
 
 export interface CampaignEntity extends BaseEntity {

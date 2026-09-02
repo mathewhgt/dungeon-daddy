@@ -6,6 +6,7 @@ import {
   BattleMapEntity, 
   WallType,
   MapPin as MapPinType,
+  MapPinSize,
   MapDrawing
 } from '../../types/map';
 import { useApp } from '../../context/AppContext';
@@ -115,6 +116,190 @@ const CONDITION_ICONS: Record<string, { label: string; icon: string; color: stri
   exhaustion: { label: 'Exhaustion', icon: '⌛', color: '#ea580c', border: '#fb923c' },
 };
 
+// DM Room Pin Sizing Configuration (World base radius & minimum screen pixel radius for dynamic scaling)
+const PIN_SIZE_MAP: Record<string, { baseRadius: number; minScreenRadius: number }> = {
+  sm: { baseRadius: 12, minScreenRadius: 13 },
+  md: { baseRadius: 16, minScreenRadius: 17 },
+  lg: { baseRadius: 22, minScreenRadius: 23 },
+  xl: { baseRadius: 28, minScreenRadius: 30 },
+};
+
+/**
+ * Draws sharp, high-visibility vector glyphs inside DM room pins
+ */
+function drawPinGlyph(
+  ctx: CanvasRenderingContext2D,
+  icon: string,
+  radius: number,
+  zoom: number
+) {
+  ctx.save();
+  const strokeW = Math.max(1.2, 1.5 / zoom);
+
+  switch (icon) {
+    case 'FileText': { // Room Description Pin
+      const s = radius * 0.48;
+      // White parchment document with clean rounded corners
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(-s * 0.72, -s, s * 1.44, s * 2, Math.max(1, s * 0.15));
+      ctx.fill();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = strokeW;
+      ctx.stroke();
+
+      // Clean horizontal text / description lines
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.42, -s * 0.4); ctx.lineTo(s * 0.42, -s * 0.4);
+      ctx.moveTo(-s * 0.42, 0); ctx.lineTo(s * 0.42, 0);
+      ctx.moveTo(-s * 0.42, s * 0.4); ctx.lineTo(s * 0.18, s * 0.4);
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = Math.max(1.1, 1.4 / zoom);
+      ctx.stroke();
+      break;
+    }
+
+    case 'BookOpen': { // Campaign Lore Pin
+      const s = radius * 0.52;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = strokeW;
+      ctx.beginPath();
+      ctx.moveTo(0, s * 0.7); ctx.lineTo(0, -s * 0.5);
+      ctx.quadraticCurveTo(-s * 0.5, -s * 0.8, -s * 0.9, -s * 0.4);
+      ctx.lineTo(-s * 0.9, s * 0.5);
+      ctx.quadraticCurveTo(-s * 0.5, s * 0.2, 0, s * 0.7);
+      ctx.quadraticCurveTo(s * 0.5, 0.2 * s, s * 0.9, 0.5 * s);
+      ctx.lineTo(s * 0.9, -s * 0.4);
+      ctx.quadraticCurveTo(s * 0.5, -s * 0.8, 0, -s * 0.5);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.stroke();
+      break;
+    }
+
+    case 'Sparkles': { // Treasure / Loot Pin
+      const s = radius * 0.54;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.quadraticCurveTo(0, 0, s, 0);
+      ctx.quadraticCurveTo(0, 0, 0, s);
+      ctx.quadraticCurveTo(0, 0, -s, 0);
+      ctx.quadraticCurveTo(0, 0, 0, -s);
+      ctx.fill();
+      break;
+    }
+
+    case 'Swords': { // Combat / Encounter Pin
+      const s = radius * 0.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(1.5, 2 / zoom);
+      ctx.beginPath();
+      ctx.moveTo(-s, -s); ctx.lineTo(s, s);
+      ctx.moveTo(s, -s); ctx.lineTo(-s, s);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.4, -s * 0.8); ctx.lineTo(-s * 0.8, -s * 0.4);
+      ctx.moveTo(s * 0.4, -s * 0.8); ctx.lineTo(s * 0.8, -s * 0.4);
+      ctx.stroke();
+      break;
+    }
+
+    case 'Skull': { // Danger / Boss Pin
+      const s = radius * 0.5;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, -s * 0.2, s * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(-s * 0.4, s * 0.2, s * 0.8, s * 0.5);
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(-s * 0.25, -s * 0.2, s * 0.18, 0, Math.PI * 2);
+      ctx.arc(s * 0.25, -s * 0.2, s * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+
+    case 'Flame': { // Trap / Hazard Pin
+      const s = radius * 0.52;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.quadraticCurveTo(s * 0.8, -s * 0.2, s * 0.5, s * 0.6);
+      ctx.quadraticCurveTo(0, s * 0.9, -s * 0.5, s * 0.6);
+      ctx.quadraticCurveTo(-s * 0.8, -s * 0.2, 0, -s);
+      ctx.fill();
+      break;
+    }
+
+    case 'Key': { // Lock / Key Pin
+      const s = radius * 0.48;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = strokeW;
+      ctx.beginPath();
+      ctx.arc(-s * 0.3, -s * 0.3, s * 0.38, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, 0); ctx.lineTo(s * 0.8, s * 0.8);
+      ctx.moveTo(s * 0.5, s * 0.5); ctx.lineTo(s * 0.75, s * 0.25);
+      ctx.moveTo(s * 0.7, s * 0.7); ctx.lineTo(s * 0.95, s * 0.45);
+      ctx.stroke();
+      break;
+    }
+
+    case 'Eye': { // Secret Pin
+      const s = radius * 0.52;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(-s, 0);
+      ctx.quadraticCurveTo(0, -s * 0.7, s, 0);
+      ctx.quadraticCurveTo(0, s * 0.7, -s, 0);
+      ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+
+    case 'ShieldAlert': { // Alert Pin
+      const s = radius * 0.5;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.lineTo(s * 0.8, -s * 0.6);
+      ctx.quadraticCurveTo(s * 0.8, s * 0.3, 0, s);
+      ctx.quadraticCurveTo(-s * 0.8, s * 0.3, -s * 0.8, -s * 0.6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = strokeW;
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.5); ctx.lineTo(0, s * 0.1);
+      ctx.stroke();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(0, s * 0.45, s * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+
+    case 'MapPin':
+    default: { // Location Pin
+      ctx.fillStyle = '#0d1117';
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+  }
+  ctx.restore();
+}
+
 export const MapCanvas: React.FC<MapCanvasProps> = ({
   map,
   activeTool = 'select',
@@ -140,6 +325,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   combatState: propCombatState,
 }) => {
   const { 
+    db,
     combatState: appCombatState, 
     updateMapToken, 
     deleteMapToken,
@@ -311,6 +497,79 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const lastCameraSyncTimeRef = useRef<number>(0);
   const cameraSyncTimerRef = useRef<any>(null);
 
+  const saveMaskTimerRef = useRef<any>(null);
+  const currentMapRef = useRef(map);
+  currentMapRef.current = map;
+
+  const persistExploredMask = useCallback(() => {
+    if (!exploredCanvasRef.current || !currentMapRef.current?.id) return;
+    try {
+      const expCanvas = exploredCanvasRef.current;
+      // Optimize storage size: downscale to max 1024px dimension for ultra-compact storage (<50KB)
+      const maxDim = 1024;
+      let targetW = expCanvas.width;
+      let targetH = expCanvas.height;
+      if (targetW > maxDim || targetH > maxDim) {
+        if (targetW >= targetH) {
+          targetH = Math.max(1, Math.round((targetH * maxDim) / targetW));
+          targetW = maxDim;
+        } else {
+          targetW = Math.max(1, Math.round((targetW * maxDim) / targetH));
+          targetH = maxDim;
+        }
+      }
+
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = targetW;
+      tempCanvas.height = targetH;
+      const tempCtx = tempCanvas.getContext('2d');
+      if (tempCtx) {
+        tempCtx.drawImage(expCanvas, 0, 0, targetW, targetH);
+        const dataUrl = tempCanvas.toDataURL('image/png');
+
+        const activeMap = currentMapRef.current;
+        saveMap({
+          ...activeMap,
+          fogOfWar: {
+            ...activeMap.fogOfWar,
+            enabled: activeMap.fogOfWar?.enabled ?? true,
+            opacity: activeMap.fogOfWar?.opacity ?? 0.65,
+            exploredMaskData: dataUrl,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to persist exploration memory mask:', err);
+    }
+  }, [saveMap]);
+
+  const scheduleSaveExploredMask = useCallback(() => {
+    if (saveMaskTimerRef.current) {
+      clearTimeout(saveMaskTimerRef.current);
+    }
+    saveMaskTimerRef.current = setTimeout(() => {
+      persistExploredMask();
+    }, 1500);
+  }, [persistExploredMask]);
+
+  // Flush exploration memory mask save on beforeunload or unmount
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (saveMaskTimerRef.current) {
+        clearTimeout(saveMaskTimerRef.current);
+        persistExploredMask();
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (saveMaskTimerRef.current) {
+        clearTimeout(saveMaskTimerRef.current);
+        persistExploredMask();
+      }
+    };
+  }, [persistExploredMask]);
+
   // Reset Explored Fog of War Mask when requested
   useEffect(() => {
     if (fogResetTrigger > 0 && exploredCanvasRef.current) {
@@ -318,17 +577,33 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       if (expCtx) {
         expCtx.clearRect(0, 0, exploredCanvasRef.current.width, exploredCanvasRef.current.height);
         isVisionDirtyRef.current = true;
+
+        if (saveMaskTimerRef.current) {
+          clearTimeout(saveMaskTimerRef.current);
+          saveMaskTimerRef.current = null;
+        }
+
+        const activeMap = currentMapRef.current;
+        saveMap({
+          ...activeMap,
+          fogOfWar: {
+            ...activeMap.fogOfWar,
+            enabled: activeMap.fogOfWar?.enabled ?? true,
+            opacity: activeMap.fogOfWar?.opacity ?? 0.65,
+            exploredMaskData: undefined,
+          },
+        });
         showToast('Fog of War exploration memory reset.');
       }
     }
-  }, [fogResetTrigger, showToast]);
+  }, [fogResetTrigger, showToast, saveMap]);
 
   // Mark vision dirty on state changes
   useEffect(() => {
     isVisionDirtyRef.current = true;
   }, [map.tokens, map.walls, map.lighting, selectedToken, isPlayerView, combatState.currentTurnIndex]);
 
-  // Load Map Background Image
+  // Load Map Background Image & Exploration Mask
   useEffect(() => {
     if (!map.imageUrl) {
       mapImageRef.current = null;
@@ -339,15 +614,35 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     img.onload = () => {
       mapImageRef.current = img;
 
-      // Initialize persistent explored canvas mask to match image dimensions
-      if (!exploredCanvasRef.current) {
-        const expCanvas = document.createElement('canvas');
-        expCanvas.width = img.naturalWidth || 2000;
-        expCanvas.height = img.naturalHeight || 2000;
+      const w = img.naturalWidth || map.width || 2000;
+      const h = img.naturalHeight || map.height || 2000;
+
+      // Always initialize / size the explored canvas for this specific map
+      let expCanvas = exploredCanvasRef.current;
+      if (!expCanvas) {
+        expCanvas = document.createElement('canvas');
         exploredCanvasRef.current = expCanvas;
       }
+      expCanvas.width = w;
+      expCanvas.height = h;
+
+      const expCtx = expCanvas.getContext('2d');
+      if (expCtx) {
+        expCtx.clearRect(0, 0, w, h);
+
+        // If this map has saved exploration memory, restore it!
+        if (map.fogOfWar?.exploredMaskData) {
+          const maskImg = new Image();
+          maskImg.src = map.fogOfWar.exploredMaskData;
+          maskImg.onload = () => {
+            expCtx.drawImage(maskImg, 0, 0, w, h);
+            isVisionDirtyRef.current = true;
+          };
+        }
+      }
+      isVisionDirtyRef.current = true;
     };
-  }, [map.imageUrl]);
+  }, [map.id, map.imageUrl]);
 
   // Coordinate Conversion: Screen to World (Instant Zero-Lag Ref Access)
   const screenToWorld = useCallback((screenX: number, screenY: number): Point2D => {
@@ -544,6 +839,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     expCtx.arc(worldPt.x, worldPt.y, fogBrushRadius, 0, Math.PI * 2);
     expCtx.fill();
     expCtx.restore();
+
+    isVisionDirtyRef.current = true;
+    scheduleSaveExploredMask();
   };
 
   // Pointer Down handler (Supports Mouse, Surface Pen, and Touch / Multi-touch)
@@ -692,10 +990,15 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           if (selectedToken?.id === tokenHit.id) onSelectToken?.(null);
           return;
         }
-        const pinHit = map.pins.find((p) => Math.hypot(p.x - worldPt.x, p.y - worldPt.y) <= 22);
+        const currentZoom = viewportRef.current.zoom;
+        const pinHit = map.pins.find((p) => {
+          const pinConfig = PIN_SIZE_MAP[p.size || 'md'] || PIN_SIZE_MAP.md;
+          const effR = Math.max(pinConfig.baseRadius, pinConfig.minScreenRadius / currentZoom);
+          return Math.hypot(p.x - worldPt.x, p.y - worldPt.y) <= effR + (8 / currentZoom);
+        });
         if (pinHit) {
           saveMap({ ...map, pins: map.pins.filter((p) => p.id !== pinHit.id) });
-          showToast('Removed pin');
+          showToast(`Removed room pin: ${pinHit.title}`);
           return;
         }
         const drawingHit = findDrawingAt(worldPt);
@@ -726,7 +1029,25 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
       if (activeTool === 'select') {
         // 1. Check if clicking on an existing Pin (supports both Dragging to Move and Clicking to Edit)
-        const clickedPin = map.pins.find((p) => Math.hypot(p.x - worldPt.x, p.y - worldPt.y) <= 22);
+        const currentZoom = viewportRef.current.zoom;
+        const clickedPin = map.pins.find((p) => {
+          const pinConfig = PIN_SIZE_MAP[p.size || 'md'] || PIN_SIZE_MAP.md;
+          const effR = Math.max(pinConfig.baseRadius, pinConfig.minScreenRadius / currentZoom);
+          const dx = worldPt.x - p.x;
+          const dy = worldPt.y - p.y;
+          // Hit on pin circle / icon
+          if (Math.hypot(dx, dy) <= effR + (8 / currentZoom)) return true;
+          // Hit on title badge
+          if (p.title) {
+            const fontSize = Math.max(10, 11 / Math.max(0.4, currentZoom));
+            const badgeH = fontSize * 1.6;
+            const badgeOffset = effR + (4 / currentZoom);
+            if (dx >= badgeOffset && dx <= badgeOffset + (180 / currentZoom) && Math.abs(dy) <= badgeH / 2 + (6 / currentZoom)) {
+              return true;
+            }
+          }
+          return false;
+        });
         if (clickedPin) {
           setDraggedPinId(clickedPin.id);
           pinDragOffsetRef.current = { x: worldPt.x - clickedPin.x, y: worldPt.y - clickedPin.y };
@@ -1076,6 +1397,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     const mapH = mapImageRef.current?.naturalHeight || map.height || 4000;
     const maxMapDiagonal = Math.hypot(mapW, mapH);
     const isDaylight = map.lighting.ambientLight === 'bright' || (map.lighting.ambientLight as string) === 'daylight';
+    const isDarkness = map.lighting.ambientLight === 'dark';
     const closedWalls = map.walls.filter((w) => !w.isOpen);
 
     // If Daylight is enabled and there are no solid walls on the map, illuminate whole map!
@@ -1095,8 +1417,64 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     }
 
     for (const tok of tokensToUse) {
-      const rangeFeet = (tok as any).visionRangeFeet || 60;
-      // In daylight: radius is whole map diagonal; in darkness: limited by token vision (e.g. 60ft)
+      // Determine token's sensory capabilities
+      let normalSight = tok.senses?.normalSight ?? 60;
+      let darkvision = tok.senses?.darkvision ?? 0;
+      let blindsight = tok.senses?.blindsight ?? 0;
+      let truesight = tok.senses?.truesight ?? 0;
+      let tremorsense = tok.senses?.tremorsense ?? 0;
+
+      // Check fallback if token senses object is not defined
+      if (!tok.senses && tok.entityId) {
+        if (tok.isPlayer) {
+          const p = db.players.find((pl) => pl.id === tok.entityId);
+          if (p) {
+            normalSight = p.sensesConfig?.normalSight ?? 60;
+            darkvision = p.sensesConfig?.darkvision ?? (
+              p.race?.toLowerCase().includes('elf') || 
+              p.race?.toLowerCase().includes('dwarf') || 
+              p.race?.toLowerCase().includes('tiefling') || 
+              p.race?.toLowerCase().includes('gnome') || 
+              p.race?.toLowerCase().includes('half-orc') || 
+              p.race?.toLowerCase().includes('orc') ? 60 : 0
+            );
+            blindsight = p.sensesConfig?.blindsight ?? 0;
+            truesight = p.sensesConfig?.truesight ?? 0;
+            tremorsense = p.sensesConfig?.tremorsense ?? 0;
+          }
+        } else {
+          const m = db.monsters.find((mn) => mn.id === tok.entityId);
+          if (m) {
+            normalSight = m.sensesConfig?.normalSight ?? 60;
+            darkvision = m.sensesConfig?.darkvision ?? (m.senses?.toLowerCase().includes('darkvision') ? 60 : 0);
+            blindsight = m.sensesConfig?.blindsight ?? (m.senses?.toLowerCase().includes('blindsight') ? 30 : 0);
+            truesight = m.sensesConfig?.truesight ?? (m.senses?.toLowerCase().includes('truesight') ? 60 : 0);
+            tremorsense = m.sensesConfig?.tremorsense ?? (m.senses?.toLowerCase().includes('tremorsense') ? 30 : 0);
+          }
+        }
+      }
+
+      // In darkness: ONLY special senses (darkvision, blindsight, truesight, tremorsense) function!
+      // Normal sight is completely ineffective in darkness (0 ft. range).
+      const specialVisionRange = Math.max(darkvision, blindsight, truesight, tremorsense);
+
+      let rangeFeet = 0;
+      if (isDaylight) {
+        // In daylight: normal sight functions across the whole illuminated area (blocked by walls)
+        rangeFeet = normalSight > 0 ? maxMapDiagonal / pixelsPerFoot : 0;
+      } else if (isDarkness) {
+        // In dark / darkness: normal sight CANNOT see anything! Only special vision types work.
+        rangeFeet = specialVisionRange;
+      } else {
+        // In dim light: normal sight works, or special vision if larger
+        rangeFeet = Math.max(normalSight, specialVisionRange);
+      }
+
+      // If token has no functioning vision in the current ambient lighting, it cannot see anything!
+      if (rangeFeet <= 0) {
+        continue;
+      }
+
       const radiusPx = isDaylight ? maxMapDiagonal : rangeFeet * pixelsPerFoot;
       const tokX = (draggedTokenPosRef.current?.id === tok.id) ? draggedTokenPosRef.current.x : tok.x;
       const tokY = (draggedTokenPosRef.current?.id === tok.id) ? draggedTokenPosRef.current.y : tok.y;
@@ -1153,7 +1531,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     }
 
     return losPolygons;
-  }, [map.lighting, map.tokens, map.walls, map.grid, combatState, selectedToken, isPlayerView]);
+  }, [map.lighting, map.tokens, map.walls, map.grid, combatState, selectedToken, isPlayerView, db.players, db.monsters]);
 
   // Main Render Canvas
   const renderCanvas = useCallback(() => {
@@ -1230,14 +1608,14 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         cachedLosPolygonsRef.current = losPolygons;
 
         // 1. Update persistent explored memory mask
-        if (exploredCanvasRef.current && losPolygons.length > 0) {
+        if (exploredCanvasRef.current && losPolygons.length > 0 && map.lighting.fogOfWarEnabled !== false) {
           const expCtx = exploredCanvasRef.current.getContext('2d');
           if (expCtx) {
             expCtx.save();
             expCtx.fillStyle = '#ffffff';
             for (const poly of losPolygons) {
-              expCtx.beginPath();
               if (poly.points.length > 0) {
+                expCtx.beginPath();
                 expCtx.moveTo(poly.points[0].x, poly.points[0].y);
                 for (let i = 1; i < poly.points.length; i++) expCtx.lineTo(poly.points[i].x, poly.points[i].y);
                 expCtx.closePath();
@@ -1245,6 +1623,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               }
             }
             expCtx.restore();
+
+            scheduleSaveExploredMask();
           }
         }
 
@@ -1256,11 +1636,11 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           darkCtx.fillStyle = 'rgba(5, 7, 10, 0.98)';
           darkCtx.fillRect(0, 0, mapW, mapH);
 
-          // Step B: Punch out Explored Memory veil (semi-transparent 55% reveal)
+          // Step B: Punch out Explored Memory veil (darker 35% reveal / 65% shadow for clear distinction)
           if (exploredCanvasRef.current && map.lighting.fogOfWarEnabled !== false) {
             darkCtx.save();
             darkCtx.globalCompositeOperation = 'destination-out';
-            darkCtx.globalAlpha = 0.58;
+            darkCtx.globalAlpha = 0.35;
             darkCtx.drawImage(exploredCanvasRef.current, 0, 0);
             darkCtx.restore();
           }
@@ -1903,40 +2283,73 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       ctx.restore();
     }
 
-    // 10. DM Pins Layer with Rich Icons & Titles
+    // 10. DM Pins Layer with Dynamic Zoom-Aware Scaling & Custom Glyphs
+    const currentZoom = viewportRef.current.zoom;
+
     for (const pin of map.pins) {
       const pinX = (draggedPinPosRef.current?.id === pin.id) ? draggedPinPosRef.current.x : pin.x;
       const pinY = (draggedPinPosRef.current?.id === pin.id) ? draggedPinPosRef.current.y : pin.y;
+      
+      const pinConfig = PIN_SIZE_MAP[pin.size || 'md'] || PIN_SIZE_MAP.md;
+      // Dynamic Zoom Scaling:
+      // When zoomed out (currentZoom < 1), scale radius up in world units so that
+      // on-screen size never shrinks below pinConfig.minScreenRadius!
+      const effectiveRadius = Math.max(pinConfig.baseRadius, pinConfig.minScreenRadius / currentZoom);
+      const isDescriptionPin = pin.icon === 'FileText';
+
       ctx.save();
       ctx.translate(pinX, pinY);
 
-      // Pin Pinpoint Circle
+      // Pin Pinpoint Circle / Shield for Description
       ctx.beginPath();
-      ctx.arc(0, 0, 10, 0, Math.PI * 2);
-      ctx.fillStyle = pin.color || '#f59e0b';
+      if (isDescriptionPin) {
+        const r = effectiveRadius;
+        const corner = r * 0.35;
+        ctx.roundRect(-r, -r, r * 2, r * 2, corner);
+      } else {
+        ctx.arc(0, 0, effectiveRadius, 0, Math.PI * 2);
+      }
+      ctx.fillStyle = pin.color || (isDescriptionPin ? '#3b82f6' : '#f59e0b');
       ctx.fill();
       ctx.strokeStyle = '#0d1117';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = Math.max(2, 2.5 / currentZoom);
       ctx.stroke();
 
-      // Pin Center Dot
-      ctx.beginPath();
-      ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#0d1117';
-      ctx.fill();
+      // Subtle Outer Glow Ring for crisp visibility against dark/busy maps
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+      ctx.lineWidth = Math.max(1, 1 / currentZoom);
+      ctx.stroke();
+
+      // Draw Center Icon / Glyph according to pin.icon
+      drawPinGlyph(ctx, pin.icon || 'MapPin', effectiveRadius, currentZoom);
 
       // Pin Title Badge
-      ctx.fillStyle = 'rgba(13, 17, 23, 0.9)';
-      const pW = ctx.measureText(pin.title).width + 12;
-      ctx.fillRect(14, -8, pW, 18);
-      ctx.strokeStyle = pin.color || '#f59e0b';
-      ctx.strokeRect(14, -8, pW, 18);
+      if (pin.title) {
+        const fontSize = Math.max(10, 11 / Math.max(0.4, currentZoom));
+        ctx.font = `bold ${Math.round(fontSize)}px sans-serif`;
+        const textMetrics = ctx.measureText(pin.title);
+        const badgePaddingX = Math.max(6, 8 / currentZoom);
+        const badgeH = fontSize * 1.6;
+        const badgeW = textMetrics.width + badgePaddingX * 2;
+        const badgeOffset = effectiveRadius + (4 / currentZoom);
 
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 10px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(pin.title, 19, 1);
+        // Badge Background with shadow
+        ctx.fillStyle = 'rgba(13, 17, 23, 0.92)';
+        ctx.beginPath();
+        ctx.roundRect(badgeOffset, -badgeH / 2, badgeW, badgeH, Math.max(3, 4 / currentZoom));
+        ctx.fill();
+
+        ctx.strokeStyle = pin.color || (isDescriptionPin ? '#3b82f6' : '#f59e0b');
+        ctx.lineWidth = Math.max(1, 1.2 / currentZoom);
+        ctx.stroke();
+
+        // Title Text
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(pin.title, badgeOffset + badgePaddingX, 1);
+      }
+
       ctx.restore();
     }
 
@@ -2138,7 +2551,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       />
 
       {/* Floating Touch-Friendly Navigation & Zoom HUD (Surface & Touch Screen Controls) */}
-      <div className="absolute bottom-4 right-4 z-20 flex items-center bg-[#121720]/90 backdrop-blur-md border border-surface-border/80 rounded-2xl shadow-2xl p-1 space-x-1 select-none pointer-events-auto">
+      <div className="absolute bottom-4 right-24 z-20 flex items-center bg-[#121720]/90 backdrop-blur-md border border-surface-border/80 rounded-2xl shadow-2xl p-1 space-x-1 select-none pointer-events-auto">
         <button
           type="button"
           onClick={handleZoomOut}

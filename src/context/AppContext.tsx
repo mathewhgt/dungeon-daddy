@@ -28,6 +28,7 @@ import {
 } from '../services/storageService';
 import { DEFAULT_TEMPLATES } from '../services/templateEngine';
 import { playerSyncService } from '../services/playerSyncService';
+import { crossWindowService } from '../services/crossWindowService';
 import { ProjectedMedia } from '../types/display';
 import { CustomBookEntity, CustomChapterEntity, HandbookTarget, HandbookChapterOverride, CustomSubclassEntity, CustomFeatEntity, CustomBackgroundEntity, CustomSpeciesEntity } from '../types/handbook';
 import { BookmarkItem, BookmarkType } from '../types/bookmark';
@@ -55,6 +56,13 @@ interface AppContextType {
   isSidebarCollapsed: boolean;
   setIsSidebarCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   toggleSidebar: () => void;
+
+  // Accessibility & Font Size Scaling
+  fontSizeScale: number;
+  setFontSizeScale: (scale: number | ((prev: number) => number)) => void;
+  increaseFontSize: () => void;
+  decreaseFontSize: () => void;
+  resetFontSize: () => void;
 
   // Snapshots & Rollback
   snapshots: DatabaseSnapshot[];
@@ -97,8 +105,8 @@ interface AppContextType {
   playerRest: (playerId: string, restType: 'short' | 'long') => void;
   saveCampaign: (campaign: CampaignEntity) => void;
   deleteCampaign: (id: string) => void;
-  saveCampaignNote: (campaignId: string, note: CampaignNote) => void;
-  deleteCampaignNote: (campaignId: string, noteId: string) => void;
+  saveCampaignNote: (campaignId: string, note: CampaignNote, silent?: boolean, fromBroadcast?: boolean) => void;
+  deleteCampaignNote: (campaignId: string, noteId: string, fromBroadcast?: boolean) => void;
   saveEncounter: (encounter: EncounterEntity) => void;
   deleteEncounter: (id: string) => void;
   saveRollTable: (table: RollTableEntity) => void;
@@ -231,7 +239,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [diceHistory, setDiceHistory] = useState<RollBreakdown[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(db.campaigns[0]?.id || null);
+  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(() => {
+    try {
+      const saved = localStorage.getItem('dd_active_campaign_id');
+      if (saved && db.campaigns?.some((c) => c.id === saved)) return saved;
+    } catch {}
+    return db.campaigns[0]?.id || null;
+  });
+
+  useEffect(() => {
+    try {
+      if (activeCampaignId) {
+        localStorage.setItem('dd_active_campaign_id', activeCampaignId);
+      }
+    } catch {}
+  }, [activeCampaignId]);
   const [activeMapId, setActiveMapId] = useState<string | null>(db.maps?.[0]?.id || null);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
@@ -294,6 +316,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const toggleRadialMenu = useCallback(() => {
     setIsRadialMenuOpen((prev) => !prev);
+  }, []);
+
+  // Accessibility Font Size Scaling
+  const [fontSizeScale, setFontSizeScaleState] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('dd_font_size_scale');
+      if (saved) {
+        const val = Number(saved);
+        if (!isNaN(val) && val >= 75 && val <= 160) {
+          return val;
+        }
+      }
+    } catch {}
+    return 100;
+  });
+
+  const applyFontSizeScale = useCallback((scale: number) => {
+    const clamped = Math.max(75, Math.min(160, Math.round(scale)));
+    const pxSize = (clamped / 100) * 16;
+    document.documentElement.style.fontSize = `${pxSize}px`;
+    document.documentElement.style.setProperty('--app-font-scale', `${clamped / 100}`);
+    document.documentElement.setAttribute('data-font-size', `${clamped}`);
+    try {
+      localStorage.setItem('dd_font_size_scale', String(clamped));
+    } catch {}
+  }, []);
+
+  const setFontSizeScale = useCallback((updater: number | ((prev: number) => number)) => {
+    setFontSizeScaleState((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      const clamped = Math.max(75, Math.min(160, Math.round(next)));
+      applyFontSizeScale(clamped);
+      return clamped;
+    });
+  }, [applyFontSizeScale]);
+
+  const increaseFontSize = useCallback(() => {
+    setFontSizeScale((prev) => {
+      const next = Math.min(160, prev + 10);
+      showToast(`Font size: ${next}%`);
+      return next;
+    });
+  }, [setFontSizeScale, showToast]);
+
+  const decreaseFontSize = useCallback(() => {
+    setFontSizeScale((prev) => {
+      const next = Math.max(75, prev - 10);
+      showToast(`Font size: ${next}%`);
+      return next;
+    });
+  }, [setFontSizeScale, showToast]);
+
+  const resetFontSize = useCallback(() => {
+    setFontSizeScale(100);
+    showToast('Font size reset to 100%');
+  }, [setFontSizeScale, showToast]);
+
+  // Sync font size on initial render
+  useEffect(() => {
+    applyFontSizeScale(fontSizeScale);
   }, []);
 
   // Initial startup: Load rich database from Cloud Sync folder or Electron AppData local_database.json
@@ -480,12 +562,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } else {
           toggleBookmarksDrawer();
         }
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        increaseFontSize();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+        e.preventDefault();
+        decreaseFontSize();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault();
+        resetFontSize();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleRadialMenu, toggleSidebar, toggleBookmarksDrawer]);
+  }, [toggleRadialMenu, toggleSidebar, toggleBookmarksDrawer, increaseFontSize, decreaseFontSize, resetFontSize]);
 
   // Bookmark Management & Navigation
   const bookmarks = db.bookmarks || [];
@@ -846,7 +937,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [showToast]);
 
   // CRUD Campaign Notes (Hierarchical)
-  const saveCampaignNote = useCallback((campaignId: string, note: CampaignNote) => {
+  const saveCampaignNote = useCallback((campaignId: string, note: CampaignNote, silent = false, fromBroadcast = false) => {
     setDb((prev) => {
       const camp = prev.campaigns.find((c) => c.id === campaignId) || prev.campaigns[0];
       if (!camp) return prev;
@@ -867,10 +958,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       return { ...prev, campaigns: updatedCampaigns };
     });
-    showToast(`Saved ${note.isFolder ? 'folder' : 'note'}: ${note.name}`);
+
+    if (!fromBroadcast) {
+      crossWindowService.broadcast({ type: 'NOTE_SAVED', campaignId, note });
+    }
+
+    if (!silent && note.isFolder) {
+      showToast(`Saved folder: ${note.name}`);
+    }
   }, [showToast]);
 
-  const deleteCampaignNote = useCallback((campaignId: string, noteId: string) => {
+  const deleteCampaignNote = useCallback((campaignId: string, noteId: string, fromBroadcast = false) => {
     setDb((prev) => {
       const camp = prev.campaigns.find((c) => c.id === campaignId) || prev.campaigns[0];
       if (!camp) return prev;
@@ -898,6 +996,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       return { ...prev, campaigns: updatedCampaigns };
     });
+
+    if (!fromBroadcast) {
+      crossWindowService.broadcast({ type: 'NOTE_DELETED', campaignId, noteId });
+    }
+
     showToast('Deleted note/folder and contents.');
   }, [showToast]);
 
@@ -1179,6 +1282,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     }
   }, [activeCampaignId, db.campaigns]);
+
+  // Sync cross-window events (e.g. map links, note switches, note saves across pop-out & main windows)
+  useEffect(() => {
+    const unsubscribe = crossWindowService.subscribe((event) => {
+      if (event.type === 'SWITCH_MAP') {
+        setActiveMapId(event.mapId);
+        setActiveTab('maps');
+      } else if (event.type === 'SWITCH_NOTE') {
+        setSelectedNoteId(event.noteId);
+      } else if (event.type === 'NOTE_SAVED') {
+        saveCampaignNote(event.campaignId, event.note, true, true);
+      } else if (event.type === 'NOTE_DELETED') {
+        deleteCampaignNote(event.campaignId, event.noteId, true);
+      }
+    });
+    return unsubscribe;
+  }, [setActiveMapId, setActiveTab, setSelectedNoteId, saveCampaignNote, deleteCampaignNote]);
 
   const projectMediaToDisplay = useCallback((media: ProjectedMedia) => {
     playerSyncService.projectMedia(media);
@@ -2806,6 +2926,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         disconnectCloudSync,
         toastMessage,
         showToast,
+        fontSizeScale,
+        setFontSizeScale,
+        increaseFontSize,
+        decreaseFontSize,
+        resetFontSize,
       }}
     >
       {children}

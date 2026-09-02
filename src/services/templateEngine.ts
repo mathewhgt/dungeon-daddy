@@ -137,8 +137,9 @@ export const DEFAULT_TEMPLATES: Record<EntityType, TemplateDefinition> = {
       'name', 'playerName', 'characterClass', 'race', 'level', 'armorClass',
       'maxHp', 'currentHp', 'tempHp', 'speed', 'initiativeBonus',
       'str', 'dex', 'con', 'int', 'wis', 'cha',
-      'passivePerception', 'passiveInvestigation', 'passiveInsight', 'notes',
-      'avatarUrl', 'tokenUrl'
+      'passivePerception', 'passiveInvestigation', 'passiveInsight',
+      'normalSight', 'darkvision', 'blindsight', 'truesight', 'tremorsense',
+      'notes', 'avatarUrl', 'tokenUrl'
     ],
     fields: [
       { key: 'name', label: 'Character Name', type: 'string', required: true, exampleValue: 'Thorin Stonehelm' },
@@ -161,6 +162,11 @@ export const DEFAULT_TEMPLATES: Record<EntityType, TemplateDefinition> = {
       { key: 'passivePerception', label: 'Passive Perception', type: 'number', defaultValue: 10, exampleValue: '14' },
       { key: 'passiveInvestigation', label: 'Passive Investigation', type: 'number', defaultValue: 10, exampleValue: '10' },
       { key: 'passiveInsight', label: 'Passive Insight', type: 'number', defaultValue: 10, exampleValue: '11' },
+      { key: 'normalSight', label: 'Normal Sight (feet)', type: 'number', defaultValue: 60, exampleValue: '60' },
+      { key: 'darkvision', label: 'Darkvision Range (feet)', type: 'number', defaultValue: 0, exampleValue: '60' },
+      { key: 'blindsight', label: 'Blindsight Range (feet)', type: 'number', defaultValue: 0, exampleValue: '30' },
+      { key: 'truesight', label: 'Truesight Range (feet)', type: 'number', defaultValue: 0, exampleValue: '60' },
+      { key: 'tremorsense', label: 'Tremorsense Range (feet)', type: 'number', defaultValue: 0, exampleValue: '30' },
       { key: 'notes', label: 'Notes / Inventory', type: 'text', exampleValue: 'Carries ancestral warhammer and shield.' },
       { key: 'avatarUrl', label: 'Character Portrait (URL or Base64)', type: 'string', exampleValue: 'https://example.com/portrait.png' },
       { key: 'tokenUrl', label: 'VTT Map Token (URL or Base64)', type: 'string', exampleValue: 'https://example.com/token.png' },
